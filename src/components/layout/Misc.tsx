@@ -4,11 +4,9 @@ import {
     Checkbox as KCheckbox,
     Separator
 } from "@kobalte/core";
-import { TagItem, TagKind } from "@mutinywallet/mutiny-wasm";
 import { A } from "@solidjs/router";
 import { Check, ChevronDown, X } from "lucide-solid";
 import {
-    createResource,
     createSignal,
     JSX,
     Match,
@@ -18,15 +16,9 @@ import {
     Switch
 } from "solid-js";
 
-import {
-    Button,
-    DecryptDialog,
-    LoadingIndicator,
-    LoadingSpinner
-} from "~/components";
+import { Button, LoadingIndicator, LoadingSpinner } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
-import { generateGradient } from "~/utils";
 
 export const SmallHeader: ParentComponent<{ class?: string }> = (props) => {
     return (
@@ -56,7 +48,7 @@ export const ButtonCard: ParentComponent<{
     return (
         <button
             onClick={() => props.onClick()}
-            class="flex w-full rounded-xl border border-white/10  p-4 active:-mb-[1px] active:mt-[1px] active:opacity-70"
+            class="flex w-full rounded-xl border border-white/10 p-4 active:mt-px active:-mb-px active:opacity-70"
             classList={{
                 "bg-neutral-900": !props.red,
                 "bg-m-red": props.red
@@ -143,9 +135,9 @@ export const DefaultMain = (props: { children?: JSX.Element }) => {
         <>
             {/* blur content that goes under the notification bar */}
             <div class="relative">
-                <div class="fixed left-0 right-0 top-0 z-50 bg-m-grey-975/70 backdrop-blur-lg safe-top" />
+                <div class="fixed top-0 right-0 left-0 z-50 bg-m-grey-975/70 safe-top backdrop-blur-lg" />
             </div>
-            <main class="flex h-full flex-1 flex-col gap-4 px-4 pb-8 pt-4">
+            <main class="flex h-full flex-1 flex-col gap-4 px-4 pt-4 pb-8">
                 {props.children}
                 <div class="h-4" />
             </main>
@@ -162,7 +154,7 @@ const FullscreenLoader = () => {
     }, 10000);
 
     return (
-        <div class="flex w-full flex-col items-center justify-center gap-4 h-device">
+        <div class="flex h-device w-full flex-col items-center justify-center gap-4">
             <LoadingSpinner wide />
             <Show when={waitedTooLong()}>
                 <p class="max-w-[20rem] text-m-grey-350">
@@ -193,7 +185,6 @@ export const MutinyWalletGuard: ParentComponent = (props) => {
                     </DefaultMain>
                 </Match>
             </Switch>
-            <DecryptDialog />
         </Suspense>
     );
 };
@@ -203,7 +194,7 @@ export const Hr = () => <Separator.Root class="my-4 border-m-grey-750" />;
 export const KeyValue: ParentComponent<{ key: string }> = (props) => {
     return (
         <li class="flex items-center justify-between gap-6">
-            <span class="min-w-max text-sm font-semibold uppercase text-m-grey-400">
+            <span class="min-w-max text-sm font-semibold text-m-grey-400 uppercase">
                 {props.key}
             </span>
             <span class="truncate font-light">{props.children}</span>
@@ -217,7 +208,7 @@ export const LargeHeader: ParentComponent<{
 }> = (props) => {
     return (
         <header
-            class="mb-2 mt-2 flex w-full items-center justify-between"
+            class="mt-2 mb-2 flex w-full items-center justify-between"
             classList={{
                 "justify-between": !props.centered,
                 "justify-center": props.centered
@@ -278,23 +269,11 @@ export const TinyText: ParentComponent = (props) => {
 
 export const TinyButton: ParentComponent<{
     onClick: () => void;
-    tag?: TagItem;
 }> = (props) => {
-    // TODO: don't need to run this if it's not a contact
-    const [gradient] = createResource(async () => {
-        return generateGradient(props.tag?.name || "?");
-    });
-
-    const bg = () =>
-        props.tag?.name && props.tag?.kind === TagKind.Contact
-            ? gradient()
-            : "rgb(255 255 255 / 0.1)";
-
     return (
         <button
             class="rounded-lg bg-white/10 px-2 py-1"
             onClick={() => props.onClick()}
-            style={{ background: bg() }}
         >
             {props.children}
         </button>
@@ -303,7 +282,7 @@ export const TinyButton: ParentComponent<{
 
 export const Indicator: ParentComponent = (props) => {
     return (
-        <div class="-my-1 box-border animate-pulse rounded bg-white/70 px-2 py-1 text-xs uppercase text-black">
+        <div class="-my-1 box-border animate-pulse rounded bg-white/70 px-2 py-1 text-xs text-black uppercase">
             {props.children}
         </div>
     );
@@ -326,7 +305,7 @@ export function Checkbox(props: {
             onChange={props.onChange}
         >
             <KCheckbox.Input class="" />
-            <KCheckbox.Control class="flex-0 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-white bg-neutral-800 ui-checked:bg-m-red">
+            <KCheckbox.Control class="flex h-8 w-8 flex-0 items-center justify-center rounded-lg border-2 border-white bg-neutral-800 ui-checked:bg-m-red">
                 <KCheckbox.Indicator>
                     <Check class="h-6 w-6" />
                 </KCheckbox.Indicator>

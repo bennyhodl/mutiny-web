@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
     appId: "com.mutinywallet.mutinywallet",
     backgroundColor: "171717",
     appName: "Mutiny Wallet",
-    webDir: "dist/public",
+    webDir: "dist",
     server: {
         androidScheme: "https"
     }

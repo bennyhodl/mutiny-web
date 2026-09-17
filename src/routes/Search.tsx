@@ -1,36 +1,10 @@
 import { Clipboard } from "@capacitor/clipboard";
 import { Capacitor } from "@capacitor/core";
-import { TagItem } from "@mutinywallet/mutiny-wasm";
-import {
-    A,
-    cache,
-    createAsync,
-    useNavigate,
-    useSearchParams
-} from "@solidjs/router";
+import { A, createAsync, useNavigate } from "@solidjs/router";
 import { LucideClipboard, Scan, X } from "lucide-solid";
-import {
-    createEffect,
-    createMemo,
-    createResource,
-    createSignal,
-    For,
-    Match,
-    onMount,
-    Show,
-    Suspense,
-    Switch
-} from "solid-js";
+import { createEffect, createSignal, onMount, Show, Suspense } from "solid-js";
 
-import {
-    ContactButton,
-    ContactEditor,
-    ContactFormValues,
-    LoadingShimmer,
-    NavBar,
-    showToast,
-    VStack
-} from "~/components";
+import { NavBar, NiceP, showToast, VStack } from "~/components";
 import {
     BackLink,
     Button,
@@ -39,15 +13,9 @@ import {
 } from "~/components/layout";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
-import {
-    actuallyFetchNostrProfile,
-    debounce,
-    hexpubFromNpub,
-    profileToPseudoContact,
-    PseudoContact,
-    searchProfiles
-} from "~/utils";
+import { debounce } from "~/utils";
 
+/** Type or paste a destination: invoice, offer, address, BIP21 or node id. */
 export function Search() {
     return (
         <MutinyWalletGuard>
@@ -61,7 +29,6 @@ export function Search() {
                         <Scan class="h-6 w-6" />
                     </A>{" "}
                 </div>
-                {/* Need to put the search view in a supsense so it loads list on first nav */}
                 <Suspense>
                     <ActualSearch />
                 </Suspense>
@@ -71,10 +38,10 @@ export function Search() {
     );
 }
 
-function ActualSearch(props: { initialValue?: string }) {
+function ActualSearch() {
     const [searchValue, setSearchValue] = createSignal("");
     const [debouncedSearchValue, setDebouncedSearchValue] = createSignal("");
-    const [_state, actions, sw] = useMegaStore();
+    const [_state, actions] = useMegaStore();
     const navigate = useNavigate();
     const i18n = useI18n();
 
@@ -86,198 +53,41 @@ function ActualSearch(props: { initialValue?: string }) {
         trigger(searchValue());
     });
 
-    const getContacts = cache(async () => {
-        try {
-            return await sw.get_contacts_sorted(40);
-        } catch (e) {
-            console.error(e);
-            return [] as TagItem[];
-        }
-    }, "contacts");
-
-    const contacts = createAsync<TagItem[]>(() => getContacts(), {
-        initialValue: []
-    });
-
-    const filteredContacts = createMemo(() => {
-        const s = debouncedSearchValue().toLowerCase();
-        return (
-            contacts()?.filter((c) => {
-                return (
-                    c.name.toLowerCase().includes(s) ||
-                    c.ln_address?.toLowerCase().includes(s) ||
-                    c.lnurl?.toLowerCase().includes(s) ||
-                    c.npub?.includes(s)
-                );
-            }) || []
-        );
-    });
-
-    const foundNpubs = createMemo(() => {
-        return (
-            filteredContacts()
-                ?.map((c) => c.npub)
-                .filter((n) => !!n) || []
-        );
-    });
-
-    type SearchState = "notsendable" | "sendable" | "sendableWithContact";
-
-    const searchState = createAsync<SearchState>(async () => {
-        if (debouncedSearchValue() === "") {
-            return "notsendable";
-        }
+    const sendable = createAsync<boolean>(async () => {
         const text = debouncedSearchValue().trim();
-        // Only want to check for something parseable if it's of reasonable length
         if (text.length < 6) {
-            return "notsendable";
+            return false;
         }
-        let state: SearchState = "notsendable";
+        let ok = false;
         await actions.handleIncomingString(
             text,
-            (_error) => {
-                // noop
+            () => {
+                ok = false;
             },
-            (result) => {
-                if (result.lightning_address || result.lnurl) {
-                    state = "sendableWithContact";
-                } else {
-                    state = "sendable";
-                }
+            () => {
+                ok = true;
             }
         );
-        console.log("params searchState", state);
-        return state;
+        return ok;
     });
 
-    function navWithSearchValue(to: string) {
-        navigate(to, {
-            state: {
-                previous: searchValue()
-                    ? `/search/?search=${searchValue().trim()}`
-                    : "/search"
-            }
-        });
-    }
-
-    async function handleContinue() {
+    async function parsePaste(text: string) {
         await actions.handleIncomingString(
-            debouncedSearchValue().trim(),
+            text,
             (error) => {
                 showToast(error);
             },
             (result) => {
-                if (result) {
-                    actions.setScanResult(result);
-                    navigate("/send", {
-                        state: {
-                            previous: "/search"
-                        }
-                    });
-                } else {
-                    showToast(new Error(i18n.t("send.error_address")));
-                }
+                actions.setScanResult(result);
+                navigate("/send", { state: { previous: "/search" } });
             }
         );
     }
 
-    const profileDeleted = createAsync(async () => {
-        const profile = await sw.get_nostr_profile();
-        return profile?.deleted;
-    });
-
-    // TODO this is mostly copy pasted from chat, could be a shared util maybe
-    async function navToSend(contact?: TagItem) {
-        if (!contact) return;
-        const address = contact.ln_address || contact.lnurl;
-        if (address) {
-            await actions.handleIncomingString(
-                (address || "").trim(),
-                (error) => {
-                    showToast(error);
-                },
-                (result) => {
-                    actions.setScanResult({
-                        ...result,
-                        contact_id: contact.id
-                    });
-                    navigate("/send");
-                }
-            );
-        } else {
-            console.error("no ln_address or lnurl");
-        }
+    async function handleContinue() {
+        await parsePaste(debouncedSearchValue().trim());
     }
 
-    async function sendToContact(contact: TagItem) {
-        if (profileDeleted()) {
-            await navToSend(contact);
-        } else {
-            navWithSearchValue(`/chat/${contact.id}`);
-        }
-    }
-
-    async function createContact(contact: ContactFormValues) {
-        try {
-            // First check if the contact already exists
-            const existingContact = contacts()?.find(
-                (c) => c.npub === contact.npub?.trim().toLowerCase()
-            );
-
-            if (existingContact) {
-                await sendToContact(existingContact);
-                return;
-            }
-
-            const contactId = await sw.create_new_contact(
-                contact.name,
-                contact.npub ? contact.npub.trim() : undefined,
-                contact.ln_address ? contact.ln_address.trim() : undefined,
-                undefined,
-                undefined
-            );
-
-            if (!contactId) {
-                throw new Error("no contact id returned");
-            }
-
-            const tagItem = await sw.get_tag_item(contactId);
-
-            if (!tagItem) {
-                throw new Error("no contact returned");
-            }
-
-            // if the new contact has an npub, send to chat
-            // otherwise, send to send page
-            if (tagItem.npub) {
-                await sendToContact(tagItem);
-            } else if (tagItem.ln_address) {
-                await actions.handleIncomingString(
-                    tagItem.ln_address,
-                    () => {},
-                    () => {
-                        navigate("/send");
-                    }
-                );
-            } else if (tagItem.lnurl) {
-                await actions.handleIncomingString(
-                    tagItem.lnurl,
-                    () => {},
-                    () => {
-                        navigate("/send");
-                    }
-                );
-            } else {
-                console.error(
-                    "No npub, ln_address, or lnurl found, this should never happen"
-                );
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    // Search input stuff
     async function handlePaste() {
         try {
             let text;
@@ -300,26 +110,9 @@ function ActualSearch(props: { initialValue?: string }) {
         }
     }
 
-    async function parsePaste(text: string) {
-        await actions.handleIncomingString(
-            text,
-            (error) => {
-                showToast(error);
-            },
-            (result) => {
-                actions.setScanResult(result);
-                navigate("/send", { state: { previous: "/search" } });
-            }
-        );
-    }
-
     let searchInputRef!: HTMLInputElement;
 
-    const [_params, setParams] = useSearchParams();
-
     onMount(() => {
-        setSearchValue(props.initialValue || "");
-        setParams({ search: "" });
         searchInputRef.focus();
     });
 
@@ -339,7 +132,7 @@ function ActualSearch(props: { initialValue?: string }) {
                 />
                 <Show when={!searchValue()}>
                     <button
-                        class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 py-1 pr-4"
+                        class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-1 py-1 pr-4"
                         onClick={handlePaste}
                     >
                         <LucideClipboard class="h-4 w-4" />
@@ -348,7 +141,7 @@ function ActualSearch(props: { initialValue?: string }) {
                 </Show>
                 <Show when={!!searchValue()}>
                     <button
-                        class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-full bg-m-grey-800 px-1 py-1"
+                        class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1 rounded-full bg-m-grey-800 px-1 py-1"
                         onClick={() => setSearchValue("")}
                     >
                         <X class="h-4 w-4" />
@@ -356,183 +149,19 @@ function ActualSearch(props: { initialValue?: string }) {
                 </Show>
             </div>
             <Suspense>
-                <div class="flex-0 flex w-full">
-                    <Show when={searchState() !== "notsendable"}>
+                <div class="flex w-full flex-0">
+                    <Show when={sendable()}>
                         <Button intent="green" onClick={handleContinue}>
                             {i18n.t("common.continue")}
                         </Button>
                     </Show>
                 </div>
-                <Show when={searchState() !== "sendable"}>
+                <Show when={!sendable()}>
                     <VStack>
-                        <Suspense>
-                            <h2 class="text-xl font-semibold">
-                                {i18n.t("send.search.contacts")}
-                            </h2>
-                            <Show when={contacts() && contacts().length > 0}>
-                                <For each={filteredContacts()}>
-                                    {(contact) => (
-                                        <ContactButton
-                                            contact={contact}
-                                            onClick={() =>
-                                                sendToContact(contact)
-                                            }
-                                        />
-                                    )}
-                                </For>
-                            </Show>
-                        </Suspense>
-                        <ContactEditor createContact={createContact} />
-
-                        <Suspense fallback={<LoadingShimmer />}>
-                            <Show when={!!debouncedSearchValue()}>
-                                <h2 class="py-2 text-xl font-semibold">
-                                    {i18n.t("send.search.global_search")}
-                                </h2>
-                                <GlobalSearch
-                                    searchValue={debouncedSearchValue()}
-                                    sendToContact={sendToContact}
-                                    foundNpubs={foundNpubs()}
-                                />
-                            </Show>
-                        </Suspense>
-                        <div class="h-4" />
+                        <NiceP>{i18n.t("send.search.help")}</NiceP>
                     </VStack>
                 </Show>
             </Suspense>
         </>
-    );
-}
-
-function GlobalSearch(props: {
-    searchValue: string;
-    sendToContact: (contact: TagItem) => void;
-    foundNpubs: (string | undefined)[];
-}) {
-    const [_state, _actions, sw] = useMegaStore();
-    const hexpubs = createMemo(() => {
-        const hexpubs: Set<string> = new Set();
-        for (const npub of props.foundNpubs) {
-            hexpubFromNpub(sw, npub)
-                .then((h) => {
-                    if (h) {
-                        hexpubs.add(h);
-                    }
-                })
-                .catch((e) => {
-                    console.error(e);
-                });
-        }
-        return hexpubs;
-    });
-
-    async function searchFetcher(args: {
-        value?: string;
-        hexpubs?: Set<string>;
-    }) {
-        try {
-            // Handling case when value starts with "npub"
-            if (args.value?.toLowerCase().startsWith("npub")) {
-                const hexpub = await hexpubFromNpub(sw, args.value);
-                if (!hexpub) return [];
-
-                const profile = await actuallyFetchNostrProfile(hexpub);
-                if (!profile) return [];
-
-                const contact = profileToPseudoContact(profile);
-                return [contact];
-            }
-
-            // Handling case for other values (name, nip-05, whatever else primal searches)
-            const contacts = await searchProfiles(args.value!.toLowerCase());
-            return contacts.filter((c) => !args.hexpubs?.has(c.hexpub));
-        } catch (e) {
-            console.error(e);
-            return [];
-        }
-    }
-
-    const searchArgs = createMemo(() => {
-        if (props.searchValue) {
-            return {
-                value: props.searchValue,
-                hexpubs: hexpubs()
-            };
-        } else {
-            return {
-                value: "",
-                hexpubs: undefined
-            };
-        }
-    });
-
-    const [searchResults] = createResource(searchArgs, searchFetcher);
-
-    return (
-        <Switch>
-            <Match
-                when={
-                    !!props.searchValue &&
-                    searchResults.state === "ready" &&
-                    searchResults()?.length === 0
-                }
-            >
-                <p class="text-neutral-500">
-                    No results found for "{props.searchValue}"
-                </p>
-            </Match>
-            <Match when={true}>
-                <For each={searchResults()}>
-                    {(contact) => (
-                        <SingleContact
-                            contact={contact}
-                            sendToContact={props.sendToContact}
-                        />
-                    )}
-                </For>
-            </Match>
-        </Switch>
-    );
-}
-
-function SingleContact(props: {
-    contact: PseudoContact;
-    sendToContact: (contact: TagItem) => void;
-}) {
-    const [_state, _actions, sw] = useMegaStore();
-
-    async function createContactFromSearchResult(contact: PseudoContact) {
-        try {
-            const contactId = await sw.create_new_contact(
-                contact.name,
-                contact.hexpub ? contact.hexpub : "",
-                contact.ln_address ? contact.ln_address : undefined,
-                undefined,
-                contact.image_url ? contact.image_url : undefined
-            );
-
-            console.log("contactId", contactId);
-
-            if (!contactId) {
-                throw new Error("no contact id returned");
-            }
-
-            const tagItem = await sw.get_tag_item(contactId);
-
-            if (!tagItem) {
-                throw new Error("no contact returned");
-            }
-
-            props.sendToContact(tagItem);
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    return (
-        <ContactButton
-            contact={props.contact}
-            onClick={() => createContactFromSearchResult(props.contact)}
-        />
     );
 }

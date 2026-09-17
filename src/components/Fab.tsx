@@ -49,8 +49,8 @@ export function FabMenu(props: {
             ref={(el) => (navRef = el)}
             class="fixed z-50 rounded-xl bg-m-grey-800/90 px-2 backdrop-blur-lg"
             classList={{
-                "right-8 bottom-[calc(2rem+5rem)]": props.right,
-                "left-2 bottom-[calc(2rem+2rem)]": props.left
+                "right-8 bottom-28": props.right,
+                "left-2 bottom-16": props.left
             }}
         >
             {props.children}
@@ -100,7 +100,7 @@ export function Fab(props: { onSearch: () => void; onScan: () => void }) {
                     </ul>
                 </FabMenu>
             </Show>
-            <div class="fixed bottom-8 right-8">
+            <div class="fixed right-8 bottom-8">
                 <button id="fab" onClick={() => setOpen(!open())}>
                     <Circle size="large" color="red">
                         <Plus class="h-8 w-8" />

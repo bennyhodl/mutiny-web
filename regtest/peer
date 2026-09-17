@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# ldk-server-cli against the regtest peer node.
+#   regtest/peer get-node-info
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+exec /Users/ben/Development/bitcoin/ldk-server/target/release/ldk-server-cli --config "$here/ldk/peer.toml" "$@"

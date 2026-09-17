@@ -508,7 +508,7 @@ const manifest: Partial<ManifestOptions> = {
         {
             name: "Activity",
             short_name: "Activity",
-            url: "/activity",
+            url: "/",
             icons: [
                 {
                     src: "/images/activity.png",

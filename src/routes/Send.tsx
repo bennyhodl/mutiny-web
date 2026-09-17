@@ -1,10 +1,8 @@
-import { MutinyInvoice, TagItem } from "@mutinywallet/mutiny-wasm";
 import { useLocation, useNavigate, useSearchParams } from "@solidjs/router";
-import { Eye, EyeOff, Link, X, Zap } from "lucide-solid";
+import { Link, X, Zap } from "lucide-solid";
 import {
     createEffect,
     createMemo,
-    createResource,
     createSignal,
     JSX,
     Match,
@@ -24,16 +22,13 @@ import {
     DefaultMain,
     Failure,
     Fee,
-    FeeDisplay,
     HackActivityType,
     InfoBox,
-    LabelCircle,
     LoadingShimmer,
     MegaCheck,
     MethodChoice,
     MutinyWalletGuard,
     NavBar,
-    SharpButton,
     showToast,
     SimpleInput,
     SmallHeader,
@@ -43,17 +38,13 @@ import {
     VStack
 } from "~/components";
 import { useI18n } from "~/i18n/context";
+import { MutinyInvoice } from "~/logic/types";
 import { ParsedParams } from "~/logic/waila";
 import { useMegaStore } from "~/state/megaStore";
 import { eify, vibrateSuccess } from "~/utils";
 
 export type SendSource = "lightning" | "onchain";
-export type PrivacyLevel = "Public" | "Private" | "Anonymous" | "Not Available";
 
-// const TEST_DEST = "bitcoin:tb1pdh43en28jmhnsrhxkusja46aufdlae5qnfrhucw5jvefw9flce3sdxfcwe?amount=0.00001&label=heyo&lightning=lntbs10u1pjrwrdedq8dpjhjmcnp4qd60w268ve0jencwzhz048ruprkxefhj0va2uspgj4q42azdg89uupp5gngy2pqte5q5uvnwcxwl2t8fsdlla5s6xl8aar4xcsvxeus2w2pqsp5n5jp3pz3vpu92p3uswttxmw79a5lc566herwh3f2amwz2sp6f9tq9qyysgqcqpcxqrpwugv5m534ww5ukcf6sdw2m75f2ntjfh3gzeqay649256yvtecgnhjyugf74zakaf56sdh66ec9fqep2kvu6xv09gcwkv36rrkm38ylqsgpw3yfjl"
-// const TEST_DEST_ADDRESS = "tb1pdh43en28jmhnsrhxkusja46aufdlae5qnfrhucw5jvefw9flce3sdxfcwe"
-
-// TODO: better success / fail type
 type SentDetails = {
     amount?: bigint;
     destination?: string;
@@ -68,27 +59,11 @@ function DestinationShower(props: {
     description?: string;
     address?: string;
     invoice?: MutinyInvoice;
+    offer?: string;
     nodePubkey?: string;
-    lnurl?: string;
-    lightning_address?: string;
-    contact?: TagItem;
 }) {
     return (
         <Switch>
-            <Match when={props.contact}>
-                <DestinationItem
-                    title={props.contact?.name || ""}
-                    value={props.contact?.ln_address}
-                    icon={
-                        <LabelCircle
-                            name={props.contact?.name || ""}
-                            image_url={props.contact?.image_url}
-                            contact
-                            label={false}
-                        />
-                    }
-                />
-            </Match>
             <Match when={props.address && props.source === "onchain"}>
                 <DestinationItem
                     title="On-chain"
@@ -103,32 +78,17 @@ function DestinationShower(props: {
                     icon={<Zap class="h-4 w-4" />}
                 />
             </Match>
-            <Match
-                when={props.lightning_address && props.source === "lightning"}
-            >
+            <Match when={props.offer && props.source === "lightning"}>
                 <DestinationItem
-                    title="Lightning"
-                    value={props.lightning_address || ""}
+                    title="BOLT12 offer"
+                    value={<StringShower text={props.offer || ""} />}
                     icon={<Zap class="h-4 w-4" />}
                 />
             </Match>
             <Match when={props.nodePubkey && props.source === "lightning"}>
                 <DestinationItem
-                    title="Lightning"
+                    title="Keysend"
                     value={<StringShower text={props.nodePubkey || ""} />}
-                    icon={<Zap class="h-4 w-4" />}
-                />
-            </Match>
-            <Match
-                when={
-                    props.lnurl &&
-                    !props.lightning_address &&
-                    props.source === "lightning"
-                }
-            >
-                <DestinationItem
-                    title="Lightning"
-                    value={<StringShower text={props.lnurl || ""} />}
                     icon={<Zap class="h-4 w-4" />}
                 />
             </Match>
@@ -142,7 +102,7 @@ export function DestinationItem(props: {
     icon: JSX.Element;
 }) {
     return (
-        <div class="grid grid-cols-[auto_minmax(0,_1fr)_minmax(0,_max-content)] items-center gap-2 rounded-xl bg-neutral-800 p-2">
+        <div class="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,max-content)] items-center gap-2 rounded-xl bg-neutral-800 p-2">
             {props.icon}
             <div class="flex flex-col gap-1">
                 <SmallHeader>{props.title}</SmallHeader>
@@ -174,15 +134,10 @@ export function Send() {
     const [isAmtEditable, setIsAmtEditable] = createSignal(true);
     const [source, setSource] = createSignal<SendSource>("lightning");
     const [invoice, setInvoice] = createSignal<MutinyInvoice>();
+    const [offer, setOffer] = createSignal<string>();
     const [nodePubkey, setNodePubkey] = createSignal<string>();
-    const [lnurlp, setLnurlp] = createSignal<string>();
-    const [lnAddress, setLnAddress] = createSignal<string>();
-    const [originalScan, setOriginalScan] = createSignal<string>();
     const [address, setAddress] = createSignal<string>();
-    const [payjoinEnabled, setPayjoinEnabled] = createSignal<boolean>();
     const [description, setDescription] = createSignal<string>();
-    const [contactId, setContactId] = createSignal<string>();
-    const [isHodlInvoice, setIsHodlInvoice] = createSignal<boolean>(false);
 
     // Is sending / sent
     const [sending, setSending] = createSignal(false);
@@ -197,29 +152,18 @@ export function Send() {
     const [error, setError] = createSignal<string>();
 
     function openDetailsModal() {
-        const paymentTxId = sentDetails()?.txid
-            ? sentDetails()
-                ? sentDetails()?.txid
-                : undefined
-            : sentDetails()
-              ? sentDetails()?.payment_hash
-              : undefined;
+        const paymentTxId = sentDetails()?.txid ?? sentDetails()?.payment_hash;
         const kind = sentDetails()?.txid ? "OnChain" : "Lightning";
-
-        console.log("Opening details modal: ", paymentTxId, kind);
 
         if (!paymentTxId) {
             console.warn("No id provided to openDetailsModal");
             return;
         }
-        if (paymentTxId !== undefined) {
-            setDetailsId(paymentTxId);
-        }
+        setDetailsId(paymentTxId);
         setDetailsKind(kind);
         setDetailsOpen(true);
     }
 
-    // TODO: can I dedupe this from the search page?
     async function parsePaste(text: string) {
         await actions.handleIncomingString(
             text,
@@ -233,39 +177,23 @@ export function Send() {
         );
     }
 
-    // TODO: do we actually use this anywhere?
     // send?invoice=... need to check for wallet because we can't parse until we have the wallet
     createEffect(() => {
-        if (params.invoice && state.load_stage === "done") {
-            parsePaste(params.invoice);
+        const invoice = Array.isArray(params.invoice)
+            ? params.invoice[0]
+            : params.invoice;
+        if (invoice && state.load_stage === "done") {
+            parsePaste(invoice);
             setParams({ invoice: undefined });
         }
     });
 
     const maxOnchain = createMemo(() => {
-        const conf = state.balance?.confirmed ?? 0n;
-        const unc = state.balance?.unconfirmed ?? 0n;
-        const fed = state.balance?.federation ?? 0n;
-
-        if (fed > conf + unc) {
-            return fed;
-        } else {
-            return conf + unc;
-        }
+        return state.balance?.confirmed ?? 0n;
     });
 
     const maxLightning = createMemo(() => {
-        const fed = state.balance?.federation ?? 0n;
-        const ln = state.balance?.lightning ?? 0n;
-        if (fed > ln) {
-            return fed;
-        } else {
-            return ln;
-        }
-    });
-
-    const maxAmountSats = createMemo(() => {
-        return source() === "onchain" ? maxOnchain() : maxLightning();
+        return state.balance?.lightning ?? 0n;
     });
 
     const isMax = createMemo(() => {
@@ -282,11 +210,7 @@ export function Send() {
             setError(i18n.t("send.error_low_balance"));
             return;
         }
-        if (
-            source() === "lightning" &&
-            (state.balance?.lightning ?? 0n) <= amountSats() &&
-            (state.balance?.federation ?? 0n) <= amountSats()
-        ) {
+        if (source() === "lightning" && maxLightning() < amountSats()) {
             setError(i18n.t("send.error_low_balance"));
             return;
         }
@@ -305,73 +229,28 @@ export function Send() {
         setError(undefined);
     });
 
-    // Rerun every time the amount changes if we're onchain
-    const [feeEstimate, { refetch }] = createResource(async () => {
-        // If it's under the dust limit don't bother
-        if (amountSats() < 546n) return undefined;
-        if (
-            source() === "onchain" &&
-            amountSats() &&
-            amountSats() > 0n &&
-            address()
-        ) {
-            try {
-                // If max we want to use the sweep fee estimator
-                if (isMax()) {
-                    return await sw.estimate_sweep_tx_fee(address()!);
-                }
-
-                const estimate = await sw.estimate_tx_fee(
-                    address()!,
-                    amountSats(),
-                    undefined
-                );
-                console.log("estimate", estimate);
-                return estimate;
-            } catch (e) {
-                // This is usually because the amount is too small or too large so we can ignore
-                console.error(e);
-            }
-        }
-        return undefined;
-    });
-
-    createEffect(() => {
-        if (amountSats() && amountSats() > 0n) {
-            refetch();
-        }
-    });
-
     const [parsingDestination, setParsingDestination] = createSignal(false);
-
-    const [decodingLnUrl, setDecodingLnUrl] = createSignal(false);
 
     function handleDestination(source: ParsedParams | undefined) {
         if (!source) return;
         setParsingDestination(true);
-        setOriginalScan(source.original);
         try {
             if (source.address) setAddress(source.address);
-            if (source.payjoin_enabled)
-                setPayjoinEnabled(source.payjoin_enabled);
             if (source.memo) setDescription(source.memo);
-            if (source.contact_id) setContactId(source.contact_id);
 
             if (source.invoice) {
                 processInvoice(source as ParsedParams & { invoice: string });
+            } else if (source.offer) {
+                processOffer(source as ParsedParams & { offer: string });
             } else if (source.node_pubkey) {
                 processNodePubkey(
                     source as ParsedParams & { node_pubkey: string }
                 );
-            } else if (source.lnurl) {
-                console.log("processing lnurl");
-                processLnurl(source as ParsedParams & { lnurl: string });
             } else {
                 setAmountSats(source.amount_sats || 0n);
                 if (source.amount_sats) setIsAmtEditable(false);
                 setSource("onchain");
             }
-            // Return the source just to trigger `decodedDestination` as not undefined
             return source;
         } catch (e) {
             console.error("error", e);
@@ -385,7 +264,7 @@ export function Send() {
         sw.decode_invoice(source.invoice!)
             .then((invoice) => {
                 if (!invoice) return;
-                if (invoice.expire <= Date.now() / 1000) {
+                if (invoice.expired || invoice.expire <= Date.now() / 1000) {
                     navigate("/search");
                     throw new Error(i18n.t("send.error_expired"));
                 }
@@ -395,7 +274,26 @@ export function Send() {
                     setIsAmtEditable(false);
                 }
                 setInvoice(invoice);
-                setIsHodlInvoice(invoice.potential_hodl_invoice);
+                setSource("lightning");
+            })
+            .catch((e) => showToast(eify(e)));
+    }
+
+    // A ParsedParams with a BOLT12 offer in it
+    function processOffer(source: ParsedParams & { offer: string }) {
+        sw.decode_offer(source.offer)
+            .then((decoded) => {
+                if (decoded.is_expired) {
+                    navigate("/search");
+                    throw new Error(i18n.t("send.error_expired"));
+                }
+                const msat = decoded.amount?.amount?.bitcoin_msat;
+                if (msat) {
+                    setAmountSats(BigInt(Math.floor(msat / 1000)));
+                    setIsAmtEditable(false);
+                }
+                if (decoded.description) setDescription(decoded.description);
+                setOffer(source.offer);
                 setSource("lightning");
             })
             .catch((e) => showToast(eify(e)));
@@ -408,46 +306,11 @@ export function Send() {
         setSource("lightning");
     }
 
-    // A ParsedParams with an lnurl in it
-    function processLnurl(source: ParsedParams & { lnurl: string }) {
-        setDecodingLnUrl(true);
-        sw.decode_lnurl(source.lnurl)
-            .then((lnurlParams) => {
-                setDecodingLnUrl(false);
-                if (lnurlParams.tag === "payRequest") {
-                    if (lnurlParams.min == lnurlParams.max) {
-                        setAmountSats(lnurlParams.min / 1000n);
-                        setIsAmtEditable(false);
-                    } else {
-                        setAmountSats(source.amount_sats || 0n);
-                    }
-
-                    if (source.lightning_address) {
-                        setLnAddress(source.lightning_address);
-                        setIsHodlInvoice(
-                            source.lightning_address
-                                .toLowerCase()
-                                .includes("zeuspay.com")
-                        );
-                    }
-                    setLnurlp(source.lnurl);
-                    setSource("lightning");
-                }
-                // TODO: this is a bit of a hack, ideally we do more nav from the megastore
-                if (lnurlParams.tag === "withdrawRequest") {
-                    actions.setScanResult(source);
-                    navigate("/redeem");
-                }
-            })
-            .catch((e) => showToast(eify(e)));
-    }
-
     createEffect(() => {
         if (amountInput() === "") {
             setAmountSats(0n);
         } else {
             const parsed = BigInt(amountInput());
-            console.log("parsed", parsed);
             if (!parsed) {
                 setUnparsedAmount(true);
             }
@@ -465,6 +328,8 @@ export function Send() {
         if (state.scan_result) {
             handleDestination(state.scan_result);
             actions.setScanResult(undefined);
+        } else {
+            navigate("/search");
         }
     });
 
@@ -474,117 +339,52 @@ export function Send() {
             const bolt11 = invoice()?.bolt11;
             const sentDetails: Partial<SentDetails> = {};
 
-            const tags = contactId() ? [contactId()!] : [];
-
-            if (whatForInput()) {
-                tags.push(whatForInput().trim());
-            }
-
             if (source() === "lightning" && invoice() && bolt11) {
                 sentDetails.destination = bolt11;
                 // If the invoice has sats use that, otherwise we pass the user-defined amount
-                if (invoice()?.amount_sats) {
-                    const payment = await sw.pay_invoice(
-                        bolt11,
-                        undefined,
-                        tags
-                    );
-                    sentDetails.amount = payment?.amount_sats;
-                    sentDetails.payment_hash = payment?.payment_hash;
-                    sentDetails.fee_estimate = payment?.fees_paid || 0;
-                } else {
-                    const payment = await sw.pay_invoice(
-                        bolt11,
-                        amountSats(),
-                        tags
-                    );
-                    sentDetails.amount = payment?.amount_sats;
-                    sentDetails.payment_hash = payment?.payment_hash;
-                    sentDetails.fee_estimate = payment?.fees_paid || 0;
-                }
-            } else if (source() === "lightning" && nodePubkey()) {
-                const payment = await sw.keysend(
-                    nodePubkey()!,
-                    amountSats(),
-                    undefined, // todo add optional keysend message
-                    tags
+                const payment = await sw.pay_invoice(
+                    bolt11,
+                    invoice()?.amount_sats ? undefined : amountSats()
                 );
-
-                // TODO: handle timeouts
-                if (!payment?.paid) {
-                    throw new Error(i18n.t("send.error_keysend"));
-                } else {
-                    sentDetails.amount = payment?.amount_sats;
-                    sentDetails.payment_hash = payment?.payment_hash;
-                    sentDetails.fee_estimate = payment?.fees_paid || 0;
-                }
-            } else if (source() === "lightning" && lnurlp()) {
-                const zapNpub =
-                    visibility() !== "Not Available" && contact()?.npub
-                        ? contact()?.npub
-                        : undefined;
-                const payment = await sw.lnurl_pay(
-                    lnurlp()!,
-                    amountSats(),
-                    zapNpub, // zap_npub
-                    tags,
-                    whatForInput(), // comment
-                    visibility()
-                );
+                sentDetails.amount = payment?.amount_sats;
                 sentDetails.payment_hash = payment?.payment_hash;
-
-                if (!payment?.paid) {
-                    throw new Error(i18n.t("send.error_LNURL"));
-                } else {
-                    sentDetails.amount = payment?.amount_sats;
-                    sentDetails.payment_hash = payment?.payment_hash;
-                    sentDetails.fee_estimate = payment?.fees_paid || 0;
-                }
+                sentDetails.fee_estimate = payment?.fees_paid || 0;
+            } else if (source() === "lightning" && offer()) {
+                sentDetails.destination = offer();
+                const payment = await sw.pay_offer(
+                    offer()!,
+                    isAmtEditable() ? amountSats() : undefined,
+                    whatForInput()
+                );
+                sentDetails.amount = payment?.amount_sats;
+                sentDetails.payment_hash = payment?.payment_hash;
+                sentDetails.fee_estimate = payment?.fees_paid || 0;
+            } else if (source() === "lightning" && nodePubkey()) {
+                const payment = await sw.keysend(nodePubkey()!, amountSats());
+                sentDetails.amount = payment?.amount_sats;
+                sentDetails.payment_hash = payment?.payment_hash;
+                sentDetails.fee_estimate = payment?.fees_paid || 0;
             } else if (source() === "onchain" && address()) {
+                let txid;
                 if (isMax()) {
                     // If we're trying to send the max amount, use the sweep method instead of regular send
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    const txid = await sw.sweep_wallet(address()!, tags);
-
-                    sentDetails.amount = amountSats();
-                    sentDetails.destination = address();
-                    sentDetails.txid = txid;
-                    sentDetails.fee_estimate = feeEstimate.latest ?? 0;
-                } else if (payjoinEnabled()) {
-                    const txid = await sw.send_payjoin(
-                        originalScan()!,
-                        amountSats(),
-                        tags
-                    );
-                    sentDetails.amount = amountSats();
-                    sentDetails.destination = address();
-                    sentDetails.txid = txid;
-                    sentDetails.fee_estimate = feeEstimate.latest ?? 0;
+                    txid = await sw.sweep_wallet(address()!);
                 } else {
-                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                    const txid = await sw.send_to_address(
-                        address()!,
-                        amountSats(),
-                        tags
-                    );
-                    sentDetails.amount = amountSats();
-                    sentDetails.destination = address();
-                    sentDetails.txid = txid;
-                    sentDetails.fee_estimate = feeEstimate.latest ?? 0;
+                    txid = await sw.send_to_address(address()!, amountSats());
                 }
+                sentDetails.amount = amountSats();
+                sentDetails.destination = address();
+                sentDetails.txid = txid;
             }
             if (sentDetails.payment_hash || sentDetails.txid) {
                 setSentDetails(sentDetails as SentDetails);
                 await vibrateSuccess();
             } else {
-                // TODO: what should we do here? hopefully this never happens?
                 console.error("failed to send: no payment hash or txid");
             }
         } catch (e) {
             const error = eify(e);
             setSentDetails({ failure_reason: error.message });
-            // TODO: figure out ux of when we want to show toast vs error screen
-            // showToast(eify(e))
             console.error(e);
         } finally {
             setSending(false);
@@ -618,7 +418,7 @@ export function Send() {
     });
 
     const sendMethods = createMemo<MethodChoice[]>(() => {
-        if (lnAddress() || lnurlp() || nodePubkey()) {
+        if (nodePubkey() || offer()) {
             return [lightningMethod()];
         }
 
@@ -633,9 +433,6 @@ export function Send() {
         if (address()) {
             return [onchainMethod()];
         }
-
-        // We should never get here
-        console.error("No send methods found");
 
         return [];
     });
@@ -656,39 +453,6 @@ export function Send() {
         }
     });
 
-    const [visibility, setVisibility] =
-        createSignal<PrivacyLevel>("Not Available");
-
-    // If the contact has an npub and it's an lnurlp send set the default visibility to private zap
-    createEffect(() => {
-        contact()?.npub && lnurlp() && setVisibility("Private");
-    });
-
-    function toggleVisibility() {
-        if (visibility() === "Not Available") {
-            setVisibility("Private");
-        } else if (visibility() === "Private") {
-            setVisibility("Public");
-        } else {
-            setVisibility("Not Available");
-        }
-    }
-
-    async function getContact(id: string) {
-        console.log("fetching contact", id);
-        try {
-            const contact = await sw.get_tag_item(id);
-            console.log("fetching contact", contact);
-            // This shouldn't happen
-            if (!contact) throw new Error("Contact not found");
-            return contact;
-        } catch (e) {
-            console.error(e);
-            showToast(eify(e));
-        }
-    }
-
-    const [contact] = createResource(contactId, getContact);
     const location = useLocation();
 
     return (
@@ -708,13 +472,8 @@ export function Send() {
                     onConfirm={() => {
                         setSentDetails(undefined);
                         const state = location.state as { previous?: string };
-                        // If we're coming from a chat, we want to go back to the chat
-                        // Otherwise we want to go home
-                        if (
-                            state?.previous &&
-                            state?.previous.includes("chat/")
-                        ) {
-                            navigate(state?.previous);
+                        if (state?.previous) {
+                            navigate("/");
                         } else {
                             navigate("/");
                         }
@@ -739,7 +498,7 @@ export function Send() {
                                 />
                             </Show>
                             <MegaCheck />
-                            <h1 class="mb-2 mt-4 w-full text-center text-2xl font-semibold md:text-3xl">
+                            <h1 class="mt-4 mb-2 w-full text-center text-2xl font-semibold md:text-3xl">
                                 {sentDetails()?.amount
                                     ? source() === "onchain"
                                         ? i18n.t("send.payment_initiated")
@@ -761,7 +520,9 @@ export function Send() {
                                 </div>
                             </div>
                             <hr class="w-16 bg-m-grey-400" />
-                            <Fee amountSats={sentDetails()?.fee_estimate} />
+                            <Show when={sentDetails()?.fee_estimate}>
+                                <Fee amountSats={sentDetails()?.fee_estimate} />
+                            </Show>
                             <p
                                 class="cursor-pointer underline"
                                 onClick={openDetailsModal}
@@ -777,13 +538,16 @@ export function Send() {
                             source={source()}
                             description={description()}
                             invoice={invoice()}
+                            offer={offer()}
                             address={address()}
                             nodePubkey={nodePubkey()}
-                            lnurl={lnurlp()}
-                            lightning_address={lnAddress()}
-                            contact={contact()}
                         />
                     </Suspense>
+                    <Show when={description()}>
+                        <p class="text-center text-m-grey-350">
+                            {description()}
+                        </p>
+                    </Show>
                     <div class="flex-1" />
                     {/* Need both these versions so that we make sure to get the right initial amount on load */}
                     <Show when={isAmtEditable()}>
@@ -798,11 +562,6 @@ export function Send() {
                             setChosenMethod={setSourceFromMethod}
                         />
                     </Show>
-                    <Show when={payjoinEnabled() && source() === "onchain"}>
-                        <InfoBox accent="green">
-                            <p>{i18n.t("send.payjoin_send")}</p>
-                        </InfoBox>
-                    </Show>
                     <Show when={!isAmtEditable()}>
                         <AmountEditable
                             initialAmountSats={amountSats()}
@@ -816,21 +575,7 @@ export function Send() {
                             setChosenMethod={setSourceFromMethod}
                         />
                     </Show>
-                    <Suspense>
-                        <Show when={feeEstimate.latest}>
-                            <FeeDisplay
-                                amountSats={amountSats().toString()}
-                                fee={feeEstimate.latest!.toString()}
-                                maxAmountSats={maxAmountSats()}
-                            />
-                        </Show>
-                    </Suspense>
-                    <Show when={isHodlInvoice()}>
-                        <InfoBox accent="red">
-                            <p>{i18n.t("send.hodl_invoice_warning")}</p>
-                        </InfoBox>
-                    </Show>
-                    <Show when={error() && !decodingLnUrl()}>
+                    <Show when={error()}>
                         <InfoBox accent="red">
                             <p>{error()}</p>
                         </InfoBox>
@@ -838,72 +583,25 @@ export function Send() {
                     <div class="flex-1" />
 
                     <VStack>
-                        <Suspense>
-                            <div class="flex w-full">
-                                <SharpButton
-                                    onClick={toggleVisibility}
-                                    // If there's no npub, or if there's an invoice, don't let switch to zap
-                                    disabled={!contact()?.npub || !!invoice()}
-                                >
-                                    <div class="flex items-center gap-2">
-                                        <Switch>
-                                            <Match
-                                                when={
-                                                    visibility() ===
-                                                    "Not Available"
-                                                }
-                                            >
-                                                <EyeOff class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.private")}
-                                                </span>
-                                            </Match>
-                                            <Match
-                                                when={
-                                                    visibility() === "Private"
-                                                }
-                                            >
-                                                <Zap class="h-4 w-4" />
-                                                <EyeOff class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.privatezap")}
-                                                </span>
-                                            </Match>
-                                            <Match
-                                                when={visibility() === "Public"}
-                                            >
-                                                <Zap class="h-4 w-4" />
-                                                <Eye class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.publiczap")}
-                                                </span>
-                                            </Match>
-                                        </Switch>
-                                    </div>
-                                </SharpButton>
-                            </div>
-                        </Suspense>
-                        <form
-                            onSubmit={async (e) => {
-                                e.preventDefault();
-                                if (!sendButtonDisabled()) {
-                                    await handleSend();
-                                }
-                            }}
-                        >
-                            <SimpleInput
-                                type="text"
-                                placeholder={
-                                    visibility() === "Not Available"
-                                        ? i18n.t("send.what_for")
-                                        : i18n.t("send.zap_note")
-                                }
-                                onInput={(e) =>
-                                    setWhatForInput(e.currentTarget.value)
-                                }
-                                value={whatForInput()}
-                            />
-                        </form>
+                        <Show when={offer()}>
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!sendButtonDisabled()) {
+                                        await handleSend();
+                                    }
+                                }}
+                            >
+                                <SimpleInput
+                                    type="text"
+                                    placeholder={i18n.t("send.what_for")}
+                                    onInput={(e) =>
+                                        setWhatForInput(e.currentTarget.value)
+                                    }
+                                    value={whatForInput()}
+                                />
+                            </form>
+                        </Show>
                         <Button
                             disabled={sendButtonDisabled()}
                             intent="blue"

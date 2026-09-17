@@ -11,14 +11,10 @@ function LoadingBar(props: { value: number; max: number }) {
             case 0:
                 return i18n.t("modals.loading.default");
             case 1:
-                return i18n.t("modals.loading.double_checking");
+                return i18n.t("modals.loading.checking_auth");
             case 2:
-                return i18n.t("modals.loading.downloading");
-            case 3:
-                return i18n.t("modals.loading.existing_wallet");
-            case 4:
                 return i18n.t("modals.loading.setup");
-            case 5:
+            case 3:
                 return i18n.t("modals.loading.done");
             default:
                 return i18n.t("modals.loading.default");
@@ -35,8 +31,8 @@ function LoadingBar(props: { value: number; max: number }) {
             class="flex w-full flex-col gap-2"
         >
             <Progress.ValueLabel class="text-sm text-m-grey-400" />
-            <Progress.Track class="h-6  rounded bg-white/10">
-                <Progress.Fill class="h-full w-[var(--kb-progress-fill-width)] rounded bg-m-blue transition-[width]" />
+            <Progress.Track class="h-6 rounded bg-white/10">
+                <Progress.Fill class="h-full w-(--kb-progress-fill-width) rounded bg-m-blue transition-[width]" />
             </Progress.Track>
         </Progress.Root>
     );
@@ -49,16 +45,13 @@ export function LoadingIndicator() {
         switch (state.load_stage) {
             case "fresh":
                 return 0;
-            case "checking_double_init":
+            case "checking_auth":
+            case "login":
                 return 1;
-            case "downloading":
-                return 2;
-            case "checking_for_existing_wallet":
-                return 3;
             case "setup":
-                return 4;
+                return 2;
             case "done":
-                return 5;
+                return 3;
             default:
                 return 0;
         }
@@ -66,7 +59,7 @@ export function LoadingIndicator() {
 
     return (
         <Show when={state.load_stage !== "done"}>
-            <LoadingBar value={loadStageValue()} max={5} />
+            <LoadingBar value={loadStageValue()} max={3} />
         </Show>
     );
 }

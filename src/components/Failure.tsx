@@ -11,7 +11,7 @@ export function Failure(props: { reason: string }) {
         <Switch>
             <Match when={props.reason === "Payment timed out."}>
                 <MegaClock />
-                <h1 class="mb-2 mt-4 w-full text-center text-2xl font-semibold md:text-3xl">
+                <h1 class="mt-4 mb-2 w-full text-center text-2xl font-semibold md:text-3xl">
                     {i18n.t("send.payment_pending")}
                 </h1>
                 <InfoBox accent="white">
@@ -22,7 +22,7 @@ export function Failure(props: { reason: string }) {
                 when={props.reason === "Channel reserve amount is too high."}
             >
                 <MegaEx />
-                <h1 class="mb-2 mt-4 w-full text-center text-2xl font-semibold md:text-3xl">
+                <h1 class="mt-4 mb-2 w-full text-center text-2xl font-semibold md:text-3xl">
                     {i18n.t("send.error_channel_reserves")}
                 </h1>
                 <InfoBox accent="white">
@@ -32,7 +32,7 @@ export function Failure(props: { reason: string }) {
             </Match>
             <Match when={true}>
                 <MegaEx />
-                <h1 class="mb-2 mt-4 w-full text-center text-2xl font-semibold md:text-3xl">
+                <h1 class="mt-4 mb-2 w-full text-center text-2xl font-semibold md:text-3xl">
                     {props.reason}
                 </h1>
             </Match>

@@ -35,7 +35,7 @@ export function ReloadPrompt() {
 
     return (
         <Show when={needRefresh()}>
-            <div class="grid grid-cols-[auto_minmax(0,_1fr)_auto] gap-4 rounded-xl bg-neutral-950/50 p-4">
+            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl bg-neutral-950/50 p-4">
                 <div class="self-center">
                     <RotateCw class="h-8 w-8" />
                 </div>

@@ -13,8 +13,6 @@ import {
     VStack
 } from "~/components";
 import { useI18n } from "~/i18n/context";
-import { FeedbackLink } from "~/routes/Feedback";
-import { useMegaStore } from "~/state/megaStore";
 
 function SettingsLinkList(props: {
     header: string;
@@ -63,7 +61,6 @@ function SettingsLinkList(props: {
 
 export function Settings() {
     const i18n = useI18n();
-    const [state, _actions] = useMegaStore();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const RELEASE_VERSION = import.meta.env.__RELEASE_VERSION__;
@@ -80,32 +77,18 @@ export function Settings() {
                     header={i18n.t("settings.general")}
                     links={[
                         {
+                            href: "/settings/node",
+                            text: i18n.t("settings.node.title"),
+                            caption: i18n.t("settings.node.caption")
+                        },
+                        {
                             href: "/settings/channels",
                             text: i18n.t("settings.channels.title")
                         },
                         {
-                            href: "/settings/backup",
-                            text: i18n.t("settings.backup.title"),
-                            accent: "green"
-                        },
-                        {
-                            href: "/settings/restore",
-                            text: i18n.t("settings.restore.title"),
-                            accent: "red"
-                        },
-                        {
-                            href: "/settings/encrypt",
-                            text: i18n.t("settings.encrypt.title"),
-                            disabled: !state.has_backed_up,
-                            caption: !state.has_backed_up
-                                ? i18n.t("settings.encrypt.caption")
-                                : undefined
-                        },
-
-                        {
-                            href: "/settings/servers",
-                            text: i18n.t("settings.servers.title"),
-                            caption: i18n.t("settings.servers.caption")
+                            href: "/settings/security",
+                            text: i18n.t("settings.security.title"),
+                            caption: i18n.t("settings.security.caption")
                         }
                     ]}
                 />
@@ -124,35 +107,6 @@ export function Settings() {
                         }
                     ]}
                 />
-                <SettingsLinkList
-                    header={i18n.t("settings.social")}
-                    links={[
-                        {
-                            href: "/settings/nostrkeys",
-                            text: i18n.t("settings.nostr_keys.title"),
-                            caption: i18n.t("settings.nostr_keys.caption")
-                        }
-                    ]}
-                />
-                <SettingsLinkList
-                    header={i18n.t("settings.debug_tools")}
-                    links={[
-                        {
-                            href: "/settings/emergencykit",
-                            text: i18n.t("settings.emergency_kit.title"),
-                            caption: i18n.t("settings.emergency_kit.caption")
-                        },
-                        {
-                            href: "/settings/admin",
-                            text: i18n.t("settings.admin.title"),
-                            caption: i18n.t("settings.admin.caption"),
-                            accent: "red"
-                        }
-                    ]}
-                />
-                <div class="flex justify-center">
-                    <FeedbackLink />
-                </div>
                 <div class="flex justify-center pb-8">
                     <TinyText>
                         {i18n.t("settings.version")} {RELEASE_VERSION}{" "}

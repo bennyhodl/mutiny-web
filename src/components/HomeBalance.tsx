@@ -8,7 +8,6 @@ export function HomeBalance() {
 
     const combinedBalance = createMemo(
         () =>
-            (state.balance?.federation || 0n) +
             (state.balance?.lightning || 0n) +
             (state.balance?.confirmed || 0n) +
             (state.balance?.unconfirmed || 0n)
@@ -20,9 +19,9 @@ export function HomeBalance() {
     return (
         <button
             onClick={actions.cycleBalanceView}
-            class="flex h-12 items-center justify-center rounded-lg border-b border-t border-b-white/10 border-t-white/40 bg-black px-4 py-2"
+            class="flex h-12 items-center justify-center rounded-lg border-t border-b border-t-white/40 border-b-white/10 bg-black px-4 py-2"
         >
-            <h1 class="flex w-full justify-center whitespace-nowrap text-2xl font-light text-white">
+            <h1 class="flex w-full justify-center text-2xl font-light whitespace-nowrap text-white">
                 <Switch>
                     <Match when={state.load_stage !== "done"}>
                         <LoadingShimmer small />

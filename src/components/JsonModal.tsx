@@ -22,8 +22,8 @@ export function JsonModal(props: {
             open={props.open}
             setOpen={props.setOpen}
         >
-            <div class="max-h-[50vh] overflow-y-scroll rounded-xl bg-white/5 p-4 disable-scrollbars">
-                <pre class="whitespace-pre-wrap break-all">{json()}</pre>
+            <div class="disable-scrollbars max-h-[50vh] overflow-y-scroll rounded-xl bg-white/5 p-4">
+                <pre class="break-all whitespace-pre-wrap">{json()}</pre>
             </div>
             {props.children}
             <div class="self-center">

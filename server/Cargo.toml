@@ -1,0 +1,37 @@
+[package]
+name = "mutiny-sidecar"
+version = "0.1.0"
+edition = "2021"
+description = "Sidecar that lets the mutiny-web wallet drive an ldk-server node."
+
+[dependencies]
+# The official ldk-server client handles the hard parts: gRPC framing over HTTP/2,
+# TLS cert pinning, and the HMAC `x-auth` signing. The `serde` feature makes every
+# proto request/response (de)serialize as JSON, so this sidecar is a thin
+# JSON <-> typed-RPC translator.
+ldk-server-client = { git = "https://github.com/lightningdevkit/ldk-server", rev = "4cf8167e2460df49b92566ee8af3ebc95d652f79", features = ["serde"] }
+ldk-server-grpc = { git = "https://github.com/lightningdevkit/ldk-server", rev = "4cf8167e2460df49b92566ee8af3ebc95d652f79", features = ["serde"] }
+
+axum = { version = "0.7", features = ["json"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+futures = "0.3"
+async-stream = "0.3"
+
+# Stateless session cookies: HMAC-SHA256 over the payload, so no session store.
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+time = "0.3"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+webauthn-rs = { version = "0.5.5", features = ["danger-allow-state-serialisation"] }
+url = "2.5.8"
+uuid = { version = "1.26.1", features = ["v4", "v5"] }

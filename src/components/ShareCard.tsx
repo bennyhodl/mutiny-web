@@ -65,9 +65,9 @@ export function StringShower(props: { text: string }) {
                 title={i18n.t("modals.details")}
                 setOpen={setOpen}
             />
-            <div class="grid w-full grid-cols-[minmax(0,_1fr)_auto] items-center">
+            <div class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center">
                 <TruncateMiddle text={props.text} />
-                <button class="w-[2rem]" onClick={() => setOpen(true)}>
+                <button class="w-8" onClick={() => setOpen(true)}>
                     <Eye />
                 </button>
             </div>
@@ -91,7 +91,7 @@ export function CopyButton(props: {
         <button class={STYLE} onClick={handleCopy}>
             {copied()
                 ? i18n.t("common.copied")
-                : props.title ?? i18n.t("common.copy")}
+                : (props.title ?? i18n.t("common.copy"))}
             <Copy />
         </button>
     );

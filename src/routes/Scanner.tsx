@@ -59,7 +59,7 @@ export function Scanner() {
     return (
         <div class="absolute inset-0">
             <Reader onResult={onResult} />
-            <div class="fixed bottom-[2rem] flex w-full flex-col items-center gap-8 px-8">
+            <div class="fixed bottom-8 flex w-full flex-col items-center gap-8 px-8">
                 <div class="flex w-full max-w-[800px] flex-col gap-2">
                     <Button intent="blue" onClick={handlePaste}>
                         {i18n.t("scanner.paste")}

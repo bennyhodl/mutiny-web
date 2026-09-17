@@ -2,7 +2,7 @@ import { createResource, createSignal, JSX, Match, Switch } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import avatar from "~/assets/generic-avatar.jpg";
-import { DEFAULT_NOSTR_NAME, generateGradient } from "~/utils";
+import { generateGradient } from "~/utils";
 
 export function Circle(props: {
     children: JSX.Element;
@@ -15,15 +15,15 @@ export function Circle(props: {
         <Dynamic
             component={props.onClick ? "button" : "div"}
             onClick={props.onClick}
-            class="flex flex-none items-center justify-center overflow-clip rounded-full border-b border-t border-b-white/10 border-t-white/50  text-3xl uppercase"
+            class="flex flex-none items-center justify-center overflow-clip rounded-full border-t border-b border-t-white/50 border-b-white/10 text-3xl uppercase"
             classList={{
                 "bg-m-grey-800": !props.color && !props.background,
                 "bg-m-red": props.color === "red" && !props.background,
                 "bg-m-green": props.color === "green" && !props.background,
-                "h-[3rem] w-[3rem]": !props.size,
-                "h-[4rem] w-[4rem]": props.size === "large",
-                "h-[8rem] w-[8rem]": props.size === "xl",
-                "active:mt-[1px] active:-mb-[1px]": !!props.onClick
+                "h-12 w-12": !props.size,
+                "h-16 w-16": props.size === "large",
+                "h-32 w-32": props.size === "xl",
+                "active:mt-px active:-mb-px": !!props.onClick
             }}
             style={{
                 background: props.background
@@ -44,7 +44,7 @@ export function LabelCircle(props: {
     onClick?: () => void;
 }) {
     const [gradient] = createResource(async () => {
-        if (props.name && props.name !== DEFAULT_NOSTR_NAME && props.contact) {
+        if (props.name && props.name !== "Anonymous" && props.contact) {
             return generateGradient(props.name || "?");
         } else {
             return undefined;
@@ -55,7 +55,7 @@ export function LabelCircle(props: {
         props.contact &&
         props.name &&
         props.name.length &&
-        props.name !== DEFAULT_NOSTR_NAME
+        props.name !== "Anonymous"
             ? props.name[0]
             : props.label
               ? "≡"

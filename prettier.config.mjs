@@ -13,6 +13,7 @@ export default {
         "prettier-plugin-tailwindcss" // MUST come last
     ],
 
+    tailwindStylesheet: "./src/root.css",
     tailwindFunctions: ["classList"],
 
     importOrder: ["<THIRD_PARTY_MODULES>", "", "^[~/]", "", "^[./]"]

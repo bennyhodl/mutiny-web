@@ -53,7 +53,6 @@ export function TextField(props: TextFieldProps) {
             <Show
                 when={props.multiline}
                 fallback={
-                    // @ts-expect-error autocapitalize isn't in the props for some reason
                     <KTextField.Input
                         {...fieldProps}
                         type={props.type}
@@ -62,7 +61,6 @@ export function TextField(props: TextFieldProps) {
                 }
             >
                 {
-                    // @ts-expect-error autocapitalize isn't in the props for some reason
                     <KTextField.TextArea
                         {...fieldProps}
                         autoResize

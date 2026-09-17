@@ -1,48 +1,44 @@
-# Use Node.js as a base image for building the site
-FROM node:20-slim AS builder
+# Single image: the mutiny-sidecar serves the built web app and proxies the
+# wallet's JSON calls to ldk-server. Mount ldk-server's data dir read-only so
+# the sidecar can read tls.crt and <network>/api_key.
+#
+#   docker build -t mutiny-web .
+#   docker run -p 8890:8890 \
+#     -v "$HOME/Library/Application Support/ldk-server:/data:ro" \
+#     -v mutiny-sidecar:/state \
+#     -e LDK_DATA_DIR=/data -e LDK_NETWORK=bitcoin \
+#     -e LDK_GRPC_ADDRESS=host.docker.internal:3536 \
+#     -e WALLET_PASSWORD=change-me -e WALLET_PUBLIC_URL=https://wallet.example.com \
+#     mutiny-web
+
+# ---- 1. Web app ----------------------------------------------------------------
+FROM node:24-slim AS web
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-
-# This is the cooler way to run pnpm these days (no need to npm install it)
-RUN corepack enable
-COPY . /app
+RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# I think we need git be here because the vite build wants to look up the commit hash
-RUN apt update && apt install -y git python3 make build-essential
-
-# Add the ARG directives for build-time environment variables
-ARG VITE_NETWORK="bitcoin"
-ARG VITE_PROXY="/_services/proxy"
-ARG VITE_PRIMAL="https://primal-cache.mutinywallet.com/api"
-ARG VITE_ESPLORA
-ARG VITE_SCORER="https://scorer.mutinywallet.com"
-ARG VITE_LSP="https://0conf.lnolymp.us"
-ARG VITE_RGS
-ARG VITE_AUTH
-ARG VITE_STORAGE="/_services/vss/v2"
-ARG VITE_SELFHOSTED="true"
-
-# Install dependencies
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-
-# IDK why but it gets mad if you don't do this
-RUN git config --global --add safe.directory /app
-
-# Build the static site
+COPY . .
+ARG VITE_COMMIT_HASH=docker
+ENV VITE_COMMIT_HASH=$VITE_COMMIT_HASH
 RUN pnpm run build
 
-# Now, use Nginx as a base image for serving the site
-FROM nginx:alpine
+# ---- 2. Sidecar ----------------------------------------------------------------
+FROM rust:1-bookworm AS sidecar
+WORKDIR /build
+COPY server/Cargo.toml server/Cargo.lock ./
+COPY server/src ./src
+RUN cargo build --release
 
-# Copy the static assets from the builder stage to the Nginx default static serve directory
-COPY --from=builder /app/dist/public /usr/share/nginx/html
-
-# Copy the custom Nginx configuration file into the container
-COPY default.conf /etc/nginx/conf.d/default.conf
-
-# Expose the default Nginx port
-EXPOSE 80
-
-# Start Nginx when the container starts
-CMD ["nginx", "-g", "daemon off;"]
+# ---- 3. Runtime ----------------------------------------------------------------
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=sidecar /build/target/release/mutiny-sidecar /usr/local/bin/mutiny-sidecar
+COPY --from=web /app/dist /web
+ENV WEB_DIR=/web
+ENV WALLET_DATA_DIR=/state
+ENV PORT=8890
+VOLUME ["/state"]
+EXPOSE 8890
+CMD ["mutiny-sidecar"]

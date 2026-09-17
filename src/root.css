@@ -1,97 +1,245 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-* {
-    touch-action: manipulation;
-    user-select: none;
+@plugin "@kobalte/tailwindcss";
+
+@source "../index.html";
+
+/* Classes built at runtime that the scanner cannot see. */
+@source inline(
+    "grid-cols-1 grid-cols-2 gap-2 gap-4 outline-m-red outline-m-blue"
+);
+
+@theme {
+    --color-half-black: rgba(0, 0, 0, 0.5);
+    --color-faint-white: rgba(255, 255, 255, 0.1);
+    --color-light-text: rgba(250, 245, 234, 0.5);
+    --color-m-green: hsla(163, 70%, 38%, 1);
+    --color-m-green-dark: hsla(163, 70%, 28%, 1);
+    --color-m-blue: hsla(220, 59%, 52%, 1);
+    --color-m-blue-400: hsla(219, 57%, 52%, 1);
+    --color-m-blue-dark: hsla(220, 59%, 42%, 1);
+    --color-m-red: hsla(343, 92%, 54%, 1);
+    --color-m-red-dark: hsla(343, 92%, 44%, 1);
+    --color-m-yellow: #e7d538;
+    --color-sidebar-gray: hsla(222, 15%, 7%, 1);
+    --color-m-grey-350: hsla(0, 0%, 73%, 1);
+    --color-m-grey-400: hsla(0, 0%, 64%, 1);
+    --color-m-grey-700: hsla(0, 0%, 25%, 1);
+    --color-m-grey-750: hsla(0, 0%, 17%, 1);
+    --color-m-grey-800: hsla(0, 0%, 12%, 1);
+    --color-m-grey-900: hsla(0, 0%, 9%, 1);
+    --color-m-grey-950: hsla(0, 0%, 8%, 1);
+    --color-m-grey-975: hsla(0, 0%, 5%, 1);
+
+    --background-image-fade-to-blue: linear-gradient(
+        1.63deg,
+        #0b215b 32.05%,
+        rgba(11, 33, 91, 0) 84.78%
+    );
+    --background-image-subtle-fade: linear-gradient(
+        180deg,
+        #060a13 0%,
+        #131e39 100%
+    );
+    --background-image-richer-fade: linear-gradient(
+        180deg,
+        hsla(224, 20%, 8%, 1) 0%,
+        hsla(224, 20%, 15%, 1) 100%
+    );
+
+    --drop-shadow-blue-glow: 0px 0px 32px rgba(11, 33, 91, 0.5);
+
+    --shadow-inner-button:
+        1px 1px 2px rgba(0, 0, 0, 0.1),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.1),
+        inset -1px -1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-inner-button-disabled:
+        1px 1px 2px rgba(0, 0, 0, 0.05),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.05),
+        inset -1px -1px 2px rgba(0, 0, 0, 0.1);
+    --shadow-fancy-card: 0px 4px 4px rgba(0, 0, 0, 0.1);
+    --shadow-above: 0px -4px 10px rgba(0, 0, 0, 0.25);
+    --shadow-keycap: 15px 15px 20px -5px rgba(0, 0, 0, 0.3);
+
+    --font-system-mono: ui-monospace, Menlo, Monaco, monospace;
+
+    --text-shadow-button: 1px 1px 0px rgba(0, 0, 0, 0.4);
+
+    --animate-throb: throb 5s ease-in-out infinite;
+
+    @keyframes throb {
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 0.9;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+    }
 }
 
-html {
-    @apply disable-scrollbars;
-    @apply bg-m-grey-975;
+@utility safe-top {
+    padding-top: env(safe-area-inset-top);
+}
+@utility safe-left {
+    padding-left: env(safe-area-inset-left);
+}
+@utility safe-right {
+    padding-right: env(safe-area-inset-right);
+}
+@utility safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+@utility min-h-device {
+    min-height: calc(
+        100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+}
+@utility h-device {
+    height: calc(
+        100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+}
+@utility max-h-device {
+    max-height: calc(
+        100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+}
+@utility h-svh {
+    height: calc(
+        100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
+}
+@utility disable-scrollbars {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+        display: none;
+    }
+    & *::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+        display: none;
+    }
+    & * {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
 }
 
-body {
-    -webkit-overflow-scrolling: touch;
-    /* After load we need to remove the bg so the qr scanner can show through */
-    @apply text-white;
-    @apply !bg-transparent;
-    @apply flex w-full flex-1 flex-col safe-top safe-left safe-right safe-bottom min-h-device h-device;
+/* Tailwind v4 defaults that changed from v3; keep the old look. */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
 }
 
-#root {
-    @apply mx-auto flex w-full max-w-[600px] flex-1 flex-col;
-}
+/* Element defaults. They live in the base layer so utilities such as
+   `no-underline` still win, as they did before Tailwind v4. */
+@layer base {
+    * {
+        touch-action: manipulation;
+        user-select: none;
+    }
 
-@media (prefers-color-scheme: light) {
-    /* we don't support this but I want the browser to know I care */
-}
+    html {
+        @apply disable-scrollbars;
+        @apply bg-m-grey-975;
+    }
 
-#mutiny-logo {
-    image-rendering: pixelated;
-}
+    body {
+        -webkit-overflow-scrolling: touch;
+        /* After load we need to remove the bg so the qr scanner can show through */
+        @apply text-white;
+        @apply bg-transparent!;
+        @apply flex h-device min-h-device w-full flex-1 flex-col safe-top safe-right safe-bottom safe-left;
+    }
 
-.bg-gradient {
-    @apply bg-gradient-to-b from-black to-[#0b215b] bg-fixed bg-no-repeat;
-}
+    #root {
+        @apply mx-auto flex w-full max-w-[600px] flex-1 flex-col;
+    }
 
-.bg-gray {
-    @apply bg-gradient-to-b from-[hsl(224,5%,5%)] to-[hsl(224,5%,20%)] bg-fixed bg-no-repeat;
-}
+    @media (prefers-color-scheme: light) {
+        /* we don't support this but I want the browser to know I care */
+    }
 
-.react-modal-sheet-container {
-    @apply !bg-[#262626];
-}
+    #mutiny-logo {
+        image-rendering: pixelated;
+    }
 
-a {
-    @apply underline decoration-m-grey-400 hover:decoration-white;
-}
+    .bg-gradient {
+        @apply bg-linear-to-b from-black to-[#0b215b] bg-fixed bg-no-repeat;
+    }
 
-p {
-    @apply font-light;
-}
+    .bg-gray {
+        @apply bg-linear-to-b from-[hsl(224,5%,5%)] to-[hsl(224,5%,20%)] bg-fixed bg-no-repeat;
+    }
 
-p:not(:last-child) {
-    @apply mb-2;
-}
+    .react-modal-sheet-container {
+        @apply bg-[#262626]!;
+    }
 
-#video-container {
-    position: relative;
-    width: max-content;
-    height: max-content;
-    overflow: hidden;
-    @apply bg-transparent;
-}
+    a {
+        @apply underline decoration-m-grey-400 hover:decoration-white;
+    }
 
-#video-container .scan-region-highlight {
-    border-radius: 30px;
-    outline: rgba(0, 0, 0, 0.25) solid 50vmax;
-}
+    p {
+        @apply font-light;
+    }
 
-#video-container .scan-region-highlight-svg {
-    display: none;
-}
+    p:not(:last-child) {
+        @apply mb-2;
+    }
 
-select {
-    @apply appearance-none;
-    @apply block;
-    @apply border-[2px] ring-offset-black focus:outline-none focus:ring-2 focus:ring-offset-2;
-    @apply text-lg font-light;
-    @apply py-4 pl-4 pr-8;
-    background-image: url("data:image/svg+xml,%3Csvg aria-hidden='true' class='w-4 h-4 ml-1' fill='white' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
-    background-size: 20px 20px;
-    background-repeat: no-repeat;
-}
+    #video-container {
+        position: relative;
+        width: max-content;
+        height: max-content;
+        overflow: hidden;
+        @apply bg-transparent;
+    }
 
-strong {
-    @apply font-semibold;
+    #video-container .scan-region-highlight {
+        border-radius: 30px;
+        outline: rgba(0, 0, 0, 0.25) solid 50vmax;
+    }
+
+    #video-container .scan-region-highlight-svg {
+        display: none;
+    }
+
+    select {
+        @apply appearance-none;
+        @apply block;
+        @apply border-2 ring-offset-black focus:ring-2 focus:ring-offset-2 focus:outline-hidden;
+        @apply text-lg font-light;
+        @apply py-4 pr-8 pl-4;
+        background-image: url("data:image/svg+xml,%3Csvg aria-hidden='true' class='w-4 h-4 ml-1' fill='white' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-size: 20px 20px;
+        background-repeat: no-repeat;
+    }
+
+    strong {
+        @apply font-semibold;
+    }
 }
 
 @layer components {
     .shiny-button {
-        @apply border-b border-t border-b-white/10 border-t-white/50 active:-mb-[1px] active:mt-[1px] active:opacity-70;
+        @apply border-t border-b border-t-white/50 border-b-white/10 active:mt-px active:-mb-px active:opacity-70;
     }
 }
 
@@ -103,10 +251,8 @@ strong {
     left: 0;
     bottom: 0;
     right: 0;
-    background: linear-gradient(
-            rgba(18, 16, 16, 0) 50%,
-            rgba(0, 0, 0, 0.25) 50%
-        ),
+    background:
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
         linear-gradient(
             90deg,
             rgba(255, 0, 0, 0.06),

@@ -1,5 +1,3 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
-
 export async function generateGradient(str: string) {
     const encoder = new TextEncoder();
     const data = encoder.encode(str);
@@ -11,14 +9,4 @@ export async function generateGradient(str: string) {
     const gradient = `linear-gradient(135deg, hsl(${h1}, 50%, 50%) 0%, hsl(${h2}, 50%, 50%) 100%)`;
 
     return gradient;
-}
-
-export async function gradientsPerContact(contacts: TagItem[]) {
-    const gradients = new Map();
-    for (const contact of contacts) {
-        const gradient = await generateGradient(contact.name);
-        gradients.set(contact.name, gradient);
-    }
-
-    return gradients;
 }

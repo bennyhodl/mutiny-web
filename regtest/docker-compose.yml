@@ -1,0 +1,51 @@
+# Private regtest stack for mutiny-web development.
+# Ports are offset (+100 from the usual defaults) so it does not collide with
+# other regtest stacks on the same machine.
+#
+#   docker compose -f regtest/docker-compose.yml up -d
+#   just regtest-mine 101
+#
+# bitcoind RPC:   127.0.0.1:18543  (user mutiny / pass mutiny)
+# electrs RPC:    tcp://127.0.0.1:50100
+# esplora HTTP:   http://127.0.0.1:30100
+name: mutiny-regtest
+services:
+  bitcoin:
+    image: bitcoin/bitcoin:27.0
+    container_name: mutiny-bitcoin
+    command:
+      - -conf=/home/bitcoin/.bitcoin/bitcoin.conf
+      - -datadir=/home/bitcoin/.bitcoin
+    ports:
+      - 127.0.0.1:18543:18443
+      - 127.0.0.1:18544:18444
+    volumes:
+      - ./volumes/bitcoin:/home/bitcoin/.bitcoin
+  electrs:
+    image: ghcr.io/vulpemventures/electrs:latest
+    container_name: mutiny-electrs
+    depends_on:
+      - bitcoin
+    command:
+      - -v
+      - --network
+      - regtest
+      - --daemon-dir
+      - /config
+      - --daemon-rpc-addr
+      - bitcoin:18443
+      - --cookie
+      - mutiny:mutiny
+      - --http-addr
+      - 0.0.0.0:30000
+      - --electrum-rpc-addr
+      - 0.0.0.0:50000
+      - --cors
+      - "*"
+      - --timestamp
+    ports:
+      - 127.0.0.1:50100:50000
+      - 127.0.0.1:30100:30000
+    volumes:
+      - ./volumes/bitcoin:/config
+      - ./volumes/electrs:/db

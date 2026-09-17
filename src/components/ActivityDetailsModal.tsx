@@ -1,16 +1,9 @@
 import { Dialog } from "@kobalte/core";
-import {
-    ActivityItem,
-    MutinyInvoice,
-    TagItem
-} from "@mutinywallet/mutiny-wasm";
-import { createAsync } from "@solidjs/router";
-import { Copy, Link, Shuffle, Zap } from "lucide-solid";
+import { Copy, Link, Zap } from "lucide-solid";
 import {
     createEffect,
     createResource,
     Match,
-    ParentComponent,
     Show,
     Suspense,
     Switch
@@ -19,74 +12,20 @@ import {
 import {
     AmountFiat,
     AmountSats,
+    ExternalLink,
     FancyCard,
     HackActivityType,
     Hr,
     InfoBox,
     KeyValue,
     ModalCloseButton,
-    TinyButton,
     TruncateMiddle,
     VStack
 } from "~/components";
 import { useI18n } from "~/i18n/context";
-import { BalanceBar } from "~/routes/settings/Channels";
+import { MutinyInvoice, OnChainTx } from "~/logic/types";
 import { useMegaStore } from "~/state/megaStore";
 import { mempoolTxUrl, prettyPrintTime, useCopy } from "~/utils";
-
-interface ChannelClosure {
-    channel_id: string;
-    node_id: string;
-    reason: string;
-    timestamp: number;
-}
-
-interface OnChainTx {
-    txid: string;
-    received: number;
-    sent: number;
-    fee?: number;
-    confirmation_time?: {
-        Confirmed?: {
-            height: number;
-            time: number;
-        };
-    };
-    labels: string[];
-}
-
-const ActivityAmount: ParentComponent<{
-    amount: string;
-    price: number;
-    positive?: boolean;
-    center?: boolean;
-}> = (props) => {
-    return (
-        <div
-            class="flex flex-col gap-1"
-            classList={{
-                "items-end": !props.center,
-                "items-center": props.center
-            }}
-        >
-            <div
-                class="justify-end"
-                classList={{ "text-m-green": props.positive }}
-            >
-                <AmountSats
-                    amountSats={Number(props.amount)}
-                    icon={props.positive ? "plus" : undefined}
-                />
-            </div>
-            <div class="text-sm text-white/70">
-                <AmountFiat
-                    amountSats={Number(props.amount)}
-                    denominationSize="sm"
-                />
-            </div>
-        </div>
-    );
-};
 
 export const OVERLAY = "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm";
 export const DIALOG_POSITIONER =
@@ -127,67 +66,34 @@ function LightningHeader(props: { info: MutinyInvoice }) {
     );
 }
 
-function OnchainHeader(props: { info: OnChainTx; kind?: HackActivityType }) {
+function OnchainHeader(props: { info: OnChainTx }) {
     const i18n = useI18n();
 
-    const isSend = () => {
-        return props.info.sent > props.info.received;
-    };
+    const isSend = () => props.info.sent > props.info.received;
 
-    const amount = () => {
-        if (isSend()) {
-            return (props.info.sent - props.info.received).toString();
-        } else {
-            return (props.info.received - props.info.sent).toString();
-        }
-    };
+    const amount = () =>
+        isSend() ? props.info.sent - props.info.received : props.info.received;
 
     return (
         <div class="flex flex-col items-center gap-4">
             <div class="flex flex-row items-center justify-center gap-[4px] font-normal">
-                {props.kind === "ChannelOpen"
-                    ? i18n.t("activity.transaction_details.channel_open")
-                    : props.kind === "ChannelClose"
-                      ? i18n.t("activity.transaction_details.channel_close")
-                      : isSend()
-                        ? i18n.t("activity.transaction_details.onchain_send")
-                        : i18n.t(
-                              "activity.transaction_details.onchain_receive"
-                          )}
-                <Switch>
-                    <Match
-                        when={
-                            props.kind === "ChannelOpen" ||
-                            props.kind === "ChannelClose"
-                        }
-                    >
-                        <Shuffle class="h-4 w-4" />
-                    </Match>
-                    <Match when={true}>
-                        <Link class="h-4 w-4" />
-                    </Match>
-                </Switch>
+                {isSend()
+                    ? i18n.t("activity.transaction_details.onchain_send")
+                    : i18n.t("activity.transaction_details.onchain_receive")}
+                <Link class="h-4 w-4" />
             </div>
-            <Show when={props.kind !== "ChannelClose" && Number(amount()) > 0}>
-                <div class="flex flex-col items-center">
-                    <div
-                        class="text-2xl"
-                        classList={{ "text-m-green": !isSend() }}
-                    >
-                        <AmountSats
-                            amountSats={Number(amount())}
-                            icon={!isSend() ? "plus" : undefined}
-                            denominationSize="lg"
-                        />
-                    </div>
-                    <div class="text-lg text-white/70">
-                        <AmountFiat
-                            amountSats={Number(amount())}
-                            denominationSize="sm"
-                        />
-                    </div>
+            <div class="flex flex-col items-center">
+                <div class="text-2xl" classList={{ "text-m-green": !isSend() }}>
+                    <AmountSats
+                        amountSats={amount()}
+                        icon={isSend() ? undefined : "plus"}
+                        denominationSize="lg"
+                    />
                 </div>
-            </Show>
+                <div class="text-lg text-white/70">
+                    <AmountFiat amountSats={amount()} denominationSize="sm" />
+                </div>
+            </div>
         </div>
     );
 }
@@ -196,7 +102,7 @@ export function MiniStringShower(props: { text: string; hide?: boolean }) {
     const [copy, copied] = useCopy({ copiedTimeout: 1000 });
 
     return (
-        <div class="grid w-full grid-cols-[minmax(0,_1fr)_auto] gap-1">
+        <div class="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-1">
             <Switch>
                 <Match when={props.hide}>
                     <input
@@ -213,7 +119,7 @@ export function MiniStringShower(props: { text: string; hide?: boolean }) {
             </Switch>
 
             <button
-                class="w-[1.5rem] p-1"
+                class="w-6 p-1"
                 classList={{ "bg-m-red rounded": copied() }}
                 onClick={() => copy(props.text)}
             >
@@ -234,37 +140,24 @@ function FormatPrettyPrint(props: { ts: number }) {
     );
 }
 
-function LightningDetails(props: { info: MutinyInvoice; tags?: TagItem }) {
+function LightningDetails(props: { info: MutinyInvoice }) {
     const i18n = useI18n();
-    const [state, _actions] = useMegaStore();
     return (
         <VStack>
             <ul class="flex flex-col gap-4">
-                <KeyValue key={i18n.t("activity.transaction_details.fee")}>
-                    <ActivityAmount
-                        amount={props.info.fees_paid?.toString() || "0"}
-                        price={state.price}
-                    />
+                <KeyValue key={i18n.t("activity.transaction_details.status")}>
+                    <span
+                        classList={{
+                            "text-m-green": props.info.status === "paid",
+                            "text-m-red": props.info.status === "failed"
+                        }}
+                    >
+                        {props.info.status}
+                    </span>
                 </KeyValue>
-                <Show when={props.tags || props.info.labels[0]}>
-                    <KeyValue
-                        key={i18n.t("activity.transaction_details.tagged_to")}
-                    >
-                        <TinyButton
-                            tag={props.tags?.value ?? undefined}
-                            onClick={() => {
-                                // noop
-                            }}
-                        >
-                            {props.tags?.name || props.info.labels[0]}
-                        </TinyButton>
-                    </KeyValue>
-                </Show>
-                <Show when={!props.info.paid}>
-                    <KeyValue
-                        key={i18n.t("activity.transaction_details.status")}
-                    >
-                        {i18n.t("activity.transaction_details.unpaid")}
+                <Show when={props.info.fees_paid}>
+                    <KeyValue key={i18n.t("activity.transaction_details.fee")}>
+                        <AmountSats amountSats={props.info.fees_paid} />
                     </KeyValue>
                 </Show>
                 <KeyValue key={i18n.t("activity.transaction_details.date")}>
@@ -274,17 +167,24 @@ function LightningDetails(props: { info: MutinyInvoice; tags?: TagItem }) {
                     <KeyValue
                         key={i18n.t("activity.transaction_details.description")}
                     >
-                        <span class="pl-6">{props.info.description}</span>
+                        {props.info.description}
                     </KeyValue>
                 </Show>
-                <KeyValue key={i18n.t("activity.transaction_details.invoice")}>
-                    <MiniStringShower text={props.info.bolt11 ?? ""} />
+                <KeyValue
+                    key={i18n.t("activity.transaction_details.payment_hash")}
+                >
+                    <MiniStringShower text={props.info.payment_hash} />
                 </KeyValue>
-                <Show when={props.info.paid && !props.info.inbound}>
+                <Show when={props.info.bolt11}>
                     <KeyValue
-                        key={i18n.t(
-                            "activity.transaction_details.payment_preimage"
-                        )}
+                        key={i18n.t("activity.transaction_details.invoice")}
+                    >
+                        <MiniStringShower text={props.info.bolt11 ?? ""} />
+                    </KeyValue>
+                </Show>
+                <Show when={props.info.preimage}>
+                    <KeyValue
+                        key={i18n.t("activity.transaction_details.preimage")}
                     >
                         <MiniStringShower text={props.info.preimage ?? ""} />
                     </KeyValue>
@@ -294,203 +194,49 @@ function LightningDetails(props: { info: MutinyInvoice; tags?: TagItem }) {
     );
 }
 
-function OnchainDetails(props: {
-    info: OnChainTx;
-    kind?: HackActivityType;
-    tags?: TagItem;
-}) {
+function OnchainDetails(props: { info: OnChainTx }) {
     const i18n = useI18n();
-    const [state, _actions, sw] = useMegaStore();
-    const [copy, copied] = useCopy({ copiedTimeout: 1000 });
-
-    const confirmationTime = () => {
-        return props.info.confirmation_time?.Confirmed?.time;
-    };
-
-    const network = state.network || "signet";
-
-    // Can return nothing if the channel is already closed
-    const [channelInfo] = createResource(async () => {
-        if (props.kind === "ChannelOpen") {
-            try {
-                const channels = await sw.list_channels();
-                const channel = channels?.find((channel) =>
-                    channel.outpoint?.startsWith(props.info.txid)
-                );
-                return channel;
-            } catch (e) {
-                console.error(e);
-            }
-        } else {
-            return undefined;
-        }
-    });
+    const [state] = useMegaStore();
 
     return (
         <VStack>
-            {/* <pre>{JSON.stringify(channelInfo() || "", null, 2)}</pre> */}
             <ul class="flex flex-col gap-4">
-                <Switch>
-                    <Match when={props.kind === "ChannelOpen" && channelInfo()}>
-                        <BalanceBar
-                            inbound={
-                                Number(channelInfo()?.size) -
-                                    (Number(channelInfo()?.balance) +
-                                        Number(channelInfo()?.reserve)) || 0
-                            }
-                            reserve={Number(channelInfo()?.reserve) || 0}
-                            outbound={Number(channelInfo()?.balance) || 0}
-                        />
-                        <KeyValue
-                            key={i18n.t("activity.transaction_details.total")}
-                        >
-                            <ActivityAmount
-                                amount={channelInfo()!.size.toString()}
-                                price={state.price}
-                            />
-                        </KeyValue>
-                        <KeyValue
-                            key={i18n.t(
-                                "activity.transaction_details.onchain_fee"
-                            )}
-                        >
-                            <ActivityAmount
-                                amount={props.info.fee!.toString()}
-                                price={state.price}
-                            />
-                        </KeyValue>
-                    </Match>
-                    <Match when={props.kind === "ChannelOpen"}>
-                        <InfoBox accent="blue">
-                            {i18n.t("activity.transaction_details.no_details")}
-                        </InfoBox>
-                    </Match>
-                </Switch>
-                <Show
-                    when={
-                        props.kind !== "ChannelOpen" &&
-                        props.info.fee &&
-                        props.info.fee > 0
-                    }
-                >
-                    <KeyValue
-                        key={i18n.t("activity.transaction_details.onchain_fee")}
-                    >
-                        <ActivityAmount
-                            amount={props.info.fee!.toString()}
-                            price={state.price}
-                        />
-                    </KeyValue>
-                </Show>
-                <Show when={props.tags && props.kind === "OnChain"}>
-                    <KeyValue
-                        key={i18n.t("activity.transaction_details.tagged_to")}
-                    >
-                        <TinyButton
-                            tag={props.tags?.value ?? undefined}
-                            onClick={() => {
-                                // noop
-                            }}
-                        >
-                            {props.tags?.name || props.info.labels[0]}
-                        </TinyButton>
-                    </KeyValue>
-                </Show>
                 <KeyValue key={i18n.t("activity.transaction_details.status")}>
-                    {confirmationTime()
-                        ? i18n.t("activity.transaction_details.confirmed")
-                        : i18n.t("activity.transaction_details.unconfirmed")}
+                    <span
+                        classList={{
+                            "text-m-green": props.info.confirmed
+                        }}
+                    >
+                        {props.info.confirmed
+                            ? i18n.t("common.confirmed")
+                            : i18n.t("common.unconfirmed")}
+                    </span>
                 </KeyValue>
-                <KeyValue key={i18n.t("activity.transaction_details.date")}>
-                    {confirmationTime() ? (
-                        <FormatPrettyPrint ts={Number(confirmationTime())} />
-                    ) : (
-                        "Pending"
-                    )}
-                </KeyValue>
-                <Show when={props.info.txid}>
-                    <KeyValue key={i18n.t("activity.transaction_details.txid")}>
-                        <div class="flex gap-1">
-                            {/* Have to do all these shenanigans because css / html is hard */}
-                            <div class="grid w-full grid-cols-[minmax(0,_1fr)_auto] gap-1">
-                                <a
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    href={mempoolTxUrl(
-                                        props.info.txid,
-                                        network
-                                    )}
-                                >
-                                    <div class="flex flex-nowrap items-center font-mono text-white">
-                                        <span class="truncate">
-                                            {props.info.txid}
-                                        </span>
-                                        <span>
-                                            {props.info.txid.length > 32
-                                                ? props.info.txid.slice(-8)
-                                                : ""}
-                                        </span>
-                                        <svg
-                                            class="inline-block w-[16px] overflow-visible pl-0.5 text-white"
-                                            width="16"
-                                            height="16"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            <path
-                                                d="M6.00002 3.33337v1.33334H10.39L2.66669 12.39l.94333.9434 7.72338-7.72336V10h1.3333V3.33337H6.00002Z"
-                                                fill="currentColor"
-                                            />
-                                        </svg>
-                                    </div>
-                                </a>
-                            </div>
-                            <button
-                                class="min-w-[1.5rem] p-1"
-                                classList={{ "bg-m-green rounded": copied() }}
-                                onClick={() => copy(props.info.txid)}
-                            >
-                                <Copy class="h-4 w-4" />
-                            </button>
-                        </div>
-                    </KeyValue>
-                </Show>
-            </ul>
-        </VStack>
-    );
-}
-
-function ChannelCloseDetails(props: { info: ChannelClosure }) {
-    const i18n = useI18n();
-    return (
-        <VStack>
-            {/* <pre>{JSON.stringify(props.info.value, null, 2)}</pre> */}
-            <ul class="flex flex-col gap-4">
-                <InfoBox accent="blue">
-                    <p>{i18n.t("activity.transaction_details.sweep_delay")}</p>
-                </InfoBox>
-                <KeyValue
-                    key={i18n.t("activity.transaction_details.channel_id")}
-                >
-                    <MiniStringShower text={props.info.channel_id ?? ""} />
-                </KeyValue>
-                <Show when={props.info.timestamp}>
+                <Show when={props.info.confirmation_time}>
                     <KeyValue key={i18n.t("activity.transaction_details.date")}>
-                        {props.info.timestamp ? (
-                            <FormatPrettyPrint
-                                ts={Number(props.info.timestamp)}
-                            />
-                        ) : (
-                            i18n.t("common.pending")
-                        )}
+                        <FormatPrettyPrint
+                            ts={props.info.confirmation_time!.timestamp}
+                        />
                     </KeyValue>
                 </Show>
-                <KeyValue key={i18n.t("activity.transaction_details.reason")}>
-                    <p class="whitespace-normal text-right text-neutral-300">
-                        {props.info.reason ?? ""}
-                    </p>
+                <Show when={props.info.fee}>
+                    <KeyValue key={i18n.t("activity.transaction_details.fee")}>
+                        <AmountSats amountSats={props.info.fee} />
+                    </KeyValue>
+                </Show>
+                <KeyValue key={i18n.t("activity.transaction_details.txid")}>
+                    <MiniStringShower text={props.info.txid} />
                 </KeyValue>
             </ul>
+            <Show when={state.network && state.network !== "regtest"}>
+                <div class="flex justify-center">
+                    <ExternalLink
+                        href={mempoolTxUrl(props.info.txid, state.network)}
+                    >
+                        {i18n.t("common.view_transaction")}
+                    </ExternalLink>
+                </div>
+            </Show>
         </VStack>
     );
 }
@@ -502,53 +248,20 @@ export function ActivityDetailsModal(props: {
     setOpen: (open: boolean) => void;
 }) {
     const [_state, _actions, sw] = useMegaStore();
+    const i18n = useI18n();
     const id = () => props.id;
     const kind = () => props.kind;
 
     const [data, { refetch }] = createResource(async () => {
         try {
             if (kind() === "Lightning") {
-                console.debug("reading invoice: ", id());
-                const invoice = await sw.get_invoice_by_hash(id());
-                return invoice;
-            } else if (kind() === "ChannelClose") {
-                console.debug("reading channel close: ", id());
-                const closeItem = await sw.get_channel_closure(id());
-
-                return closeItem;
+                return await sw.get_invoice_by_hash(id());
             } else {
-                console.debug("reading tx: ", id());
-                const tx = await sw.get_transaction(id());
-
-                return tx;
+                return await sw.get_transaction(id());
             }
         } catch (e) {
             console.error(e);
             return undefined;
-        }
-    });
-    const tags = createAsync(async () => {
-        if (
-            !!data() &&
-            // @ts-expect-error we're narrowing the type here
-            data()?.labels !== undefined &&
-            // @ts-expect-error we're narrowing the type here
-            typeof data()?.labels[0] === "string"
-        ) {
-            const typedData = data() as MutinyInvoice | ActivityItem;
-            try {
-                // find if there's just one for now
-                const tags = await sw.get_tag_item(typedData.labels[0]);
-                if (tags) {
-                    return tags;
-                } else {
-                    return;
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        } else {
-            return;
         }
     });
 
@@ -588,19 +301,12 @@ export function ActivityDetailsModal(props: {
                                                     />
                                                 </Match>
                                                 <Match
-                                                    when={
-                                                        kind() === "OnChain" ||
-                                                        kind() ===
-                                                            "ChannelOpen" ||
-                                                        kind() ===
-                                                            "ChannelClose"
-                                                    }
+                                                    when={kind() === "OnChain"}
                                                 >
                                                     <OnchainHeader
                                                         info={
-                                                            data() as unknown as OnChainTx
+                                                            data() as OnChainTx
                                                         }
-                                                        kind={kind()}
                                                     />
                                                 </Match>
                                             </Switch>
@@ -608,35 +314,38 @@ export function ActivityDetailsModal(props: {
                                     </FancyCard>
                                 </Dialog.Title>
                                 <Hr />
+                                <Show when={!data.loading && !data.latest}>
+                                    <VStack>
+                                        <InfoBox accent="blue">
+                                            {i18n.t(
+                                                "activity.transaction_details.not_synced_yet"
+                                            )}
+                                        </InfoBox>
+                                        <Show when={kind() === "OnChain"}>
+                                            <ul class="flex flex-col gap-4">
+                                                <KeyValue
+                                                    key={i18n.t(
+                                                        "activity.transaction_details.txid"
+                                                    )}
+                                                >
+                                                    <MiniStringShower
+                                                        text={id()}
+                                                    />
+                                                </KeyValue>
+                                            </ul>
+                                        </Show>
+                                    </VStack>
+                                </Show>
                                 <Show when={data.latest}>
                                     <Switch>
                                         <Match when={kind() === "Lightning"}>
                                             <LightningDetails
-                                                info={
-                                                    data() as unknown as MutinyInvoice
-                                                }
-                                                tags={tags()}
+                                                info={data() as MutinyInvoice}
                                             />
                                         </Match>
-                                        <Match
-                                            when={
-                                                kind() === "OnChain" ||
-                                                kind() === "ChannelOpen"
-                                            }
-                                        >
+                                        <Match when={kind() === "OnChain"}>
                                             <OnchainDetails
-                                                info={
-                                                    data() as unknown as OnChainTx
-                                                }
-                                                kind={kind()}
-                                                tags={tags()}
-                                            />
-                                        </Match>
-                                        <Match when={kind() === "ChannelClose"}>
-                                            <ChannelCloseDetails
-                                                info={
-                                                    data() as unknown as ChannelClosure
-                                                }
+                                                info={data() as OnChainTx}
                                             />
                                         </Match>
                                     </Switch>

@@ -13,7 +13,7 @@ export function createDeepSignal<T>(value: T): Signal<T> {
         // eslint-disable-next-line
         (v: T) => {
             const unwrapped = unwrap(store.value);
-            typeof v === "function" && (v = v(unwrapped));
+            if (typeof v === "function") v = v(unwrapped);
             setStore("value", reconcile(v, { merge: true }));
             return store.value;
         }

@@ -1,0 +1,16 @@
+# Regtest ldk-server peer node. Open channels between wallet and peer for tests.
+
+[node]
+network = "regtest"
+listening_addresses = ["127.0.0.1:9836"]
+grpc_service_address = "127.0.0.1:3637"
+alias = "mutiny-peer"
+
+[storage.disk]
+dir_path = "/tmp/mutiny-regtest/ldk/peer"
+
+[log]
+level = "Debug"
+
+[electrum]
+server_url = "tcp://127.0.0.1:50100"

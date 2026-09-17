@@ -1,16 +1,19 @@
 import child from "node:child_process";
 import path from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
-import { comlink } from "vite-plugin-comlink";
 import { VitePWA, VitePWAOptions } from "vite-plugin-pwa";
 import solid from "vite-plugin-solid";
-import wasm from "vite-plugin-wasm";
 
 import manifest from "./manifest";
 
 const commitHash =
     process.env.VITE_COMMIT_HASH ??
     child.execSync("git rev-parse --short HEAD").toString().trim();
+
+// Where the mutiny-sidecar listens during development. In production the
+// sidecar serves the built app itself, so everything is same-origin.
+const sidecar = process.env.SIDECAR_URL ?? "http://127.0.0.1:8890";
 
 const pwaOptions: Partial<VitePWAOptions> = {
     base: "/",
@@ -20,9 +23,8 @@ const pwaOptions: Partial<VitePWAOptions> = {
     },
     workbox: {
         navigateFallback: "/index.html",
-        globPatterns: ["**/*.{js,css,html,svg,png,gif,wasm}"],
-        // mutiny_wasm is 10mb, so we'll do 25mb to be safe
-        maximumFileSizeToCacheInBytes: 25 * 1024 * 1024
+        navigateFallbackDenylist: [/^\/api\//],
+        globPatterns: ["**/*.{js,css,html,svg,png,gif}"]
     },
     includeAssets: ["favicon.ico", "robots.txt"],
     manifest: manifest
@@ -31,22 +33,20 @@ const pwaOptions: Partial<VitePWAOptions> = {
 export default defineConfig({
     build: {
         target: "esnext",
-        outDir: "dist/public",
+        outDir: "dist",
         emptyOutDir: true,
         sourcemap: true
     },
     server: {
         port: 3420,
-        fs: {
-            // Allow serving files from one level up (so that if mutiny-node is a sibling folder we can use it locally)
-            allow: [".."]
+        proxy: {
+            "/api": {
+                target: sidecar,
+                changeOrigin: false
+            }
         }
     },
-    plugins: [comlink(), wasm(), solid(), VitePWA(pwaOptions)],
-    worker: {
-        plugins: () => [comlink(), wasm()],
-        format: "es"
-    },
+    plugins: [tailwindcss(), solid(), VitePWA(pwaOptions)],
     define: {
         "import.meta.env.__COMMIT_HASH__": JSON.stringify(commitHash),
         "import.meta.env.__RELEASE_VERSION__": JSON.stringify(
@@ -60,7 +60,6 @@ export default defineConfig({
         // Don't want vite to bundle these late during dev causing reload
         include: [
             "qr-scanner",
-            "@solid-primitives/upload",
             "i18next",
             "i18next-browser-languagedetector",
             "@capacitor-mlkit/barcode-scanning",
@@ -74,8 +73,6 @@ export default defineConfig({
             "@capacitor/status-bar",
             "@capacitor/toast"
         ],
-        // This is necessary because otherwise `vite dev` can't find the wasm
-        exclude: ["@mutinywallet/mutiny-wasm"],
         esbuildOptions: {
             target: "esnext"
         }

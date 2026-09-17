@@ -12,14 +12,16 @@ type CommonButtonStyleProps = {
 };
 
 interface ButtonProps
-    extends JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+    extends
+        JSX.ButtonHTMLAttributes<HTMLButtonElement>,
         CommonButtonStyleProps {
     loading?: boolean;
     disabled?: boolean;
 }
 
 interface ButtonLinkProps
-    extends JSX.ButtonHTMLAttributes<HTMLAnchorElement>,
+    extends
+        JSX.ButtonHTMLAttributes<HTMLAnchorElement>,
         CommonButtonStyleProps {
     href: string;
     target?: string;
@@ -32,7 +34,7 @@ export const Button: ParentComponent<ButtonProps> = (props) => {
         <button
             {...attrs}
             disabled={props.disabled || props.loading}
-            class="rounded-xl p-3 font-semibold transition active:-mb-[2px] active:mt-[2px] "
+            class="rounded-xl p-3 font-semibold transition active:mt-[2px] active:mb-[-2px]"
             classList={{
                 "disabled:bg-neutral-400/10 disabled:text-white/20 disabled:shadow-inner-button-disabled":
                     local.intent !== "text",

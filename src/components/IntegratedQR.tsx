@@ -1,8 +1,8 @@
 import { Copy, Link, Share, Zap } from "lucide-solid";
 import { Match, Show, Switch } from "solid-js";
-import { QRCodeSVG } from "solid-qr-code";
 
 import { AmountFiat, AmountSats, TruncateMiddle } from "~/components";
+import { QrCode } from "~/components/QrCode";
 import { useI18n } from "~/i18n/context";
 import { ReceiveFlavor } from "~/routes/Receive";
 import { useCopy } from "~/utils";
@@ -90,7 +90,7 @@ export function IntegratedQr(props: {
                     <Show when={props.kind !== "onchain"}>
                         <div class="flex flex-col gap-1">
                             <AmountSats amountSats={Number(props.amountSats)} />
-                            <div class="text-sm ">
+                            <div class="text-sm">
                                 <AmountFiat
                                     amountSats={Number(props.amountSats)}
                                 />
@@ -104,12 +104,12 @@ export function IntegratedQr(props: {
                 <div class="py-4" />
             </Show>
 
-            <QRCodeSVG
+            <QrCode
                 value={props.value}
-                class="h-full max-h-[256px] w-full"
+                class="mx-auto w-full max-w-[256px] [&>svg]:h-auto [&>svg]:w-full"
             />
             <div
-                class="grid w-full max-w-[256px] gap-1 py-4 "
+                class="grid w-full max-w-[256px] gap-1 py-4"
                 classList={{
                     "grid-cols-[2rem_minmax(0,1fr)_2rem]": !!navigator.share,
                     "grid-cols-[minmax(0,1fr)_2rem]": !navigator.share
@@ -128,7 +128,7 @@ export function IntegratedQr(props: {
                         <TruncateMiddle text={props.value} whiteBg />
                     </div>
                     <button
-                        class=" justify-self-end"
+                        class="justify-self-end"
                         onClick={() => copy(props.value)}
                     >
                         <Copy />

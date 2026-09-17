@@ -217,9 +217,11 @@ export const AmountEditable: ParentComponent<{
                     class="absolute -z-10 opacity-0"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        props.onSubmit
-                            ? props.onSubmit()
-                            : setFocusState("unfocused");
+                        if (props.onSubmit) {
+                            props.onSubmit();
+                        } else {
+                            setFocusState("unfocused");
+                        }
                     }}
                 >
                     <input type="submit" style={{ display: "none" }} />
@@ -281,7 +283,7 @@ function MethodChooser(props: {
             props.methods[
                 activeIndex === props.methods.length - 1 ? 0 : activeIndex + 1
             ];
-        props.setChosenMethod && props.setChosenMethod(nextMethod);
+        props.setChosenMethod?.(nextMethod);
     }
     return (
         <>

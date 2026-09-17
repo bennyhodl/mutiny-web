@@ -1,7 +1,7 @@
 import {
     BarcodeFormat,
-    BarcodeScannedEvent,
     BarcodeScanner,
+    BarcodesScannedEvent,
     PermissionStatus
 } from "@capacitor-mlkit/barcode-scanning";
 import { Capacitor } from "@capacitor/core";
@@ -27,9 +27,8 @@ export function Reader(props: { onResult: (result: string) => void }) {
             document.querySelector("html")?.classList.add("bg-transparent");
 
             const listener = await BarcodeScanner.addListener(
-                "barcodeScanned",
-                // eslint-disable-next-line
-                async (result: BarcodeScannedEvent) => {
+                "barcodesScanned",
+                async (result: BarcodesScannedEvent) => {
                     document
                         .querySelector("html")
                         ?.classList.remove("bg-transparent");
@@ -37,9 +36,9 @@ export function Reader(props: { onResult: (result: string) => void }) {
                     await BarcodeScanner.stopScan();
                     await listener.remove();
 
-                    // if the result has content
-                    if (result && result.barcode) {
-                        handleResult({ data: result.barcode.rawValue }); // pass the raw scanned content
+                    const barcode = result?.barcodes?.[0];
+                    if (barcode?.rawValue) {
+                        handleResult({ data: barcode.rawValue });
                     }
                 }
             );
@@ -93,7 +92,7 @@ export function Reader(props: { onResult: (result: string) => void }) {
         <>
             <div id="video-container">
                 <video
-                    ref={container}
+                    ref={(el) => (container = el)}
                     class="fixed h-full w-full bg-transparent object-cover"
                 />
             </div>

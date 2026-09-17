@@ -1,73 +1,133 @@
-### Running Mutiny Web
+# Mutiny Web
 
-### Dependencies
+Mutiny Web is a Lightning wallet UI for an [ldk-server](https://github.com/lightningdevkit/ldk-server) node.
+The node holds the keys and does the Lightning work. The app is a remote control for it.
 
--   pnpm > 8
+It used to embed a node as WebAssembly. That runtime is gone. Instead, a small Rust
+**sidecar** runs next to ldk-server, holds its secrets, and serves the wallet as JSON.
 
 ```
+┌──────────────────────┐   JSON + SSE    ┌───────────────────┐   gRPC / HTTP2 / TLS   ┌────────────┐
+│  mutiny-web (Solid)  │ ──────────────▶ │  mutiny-sidecar   │ ──── + HMAC x-auth ──▶ │ ldk-server │
+│  browser / Capacitor │ ◀────────────── │  (server/, Rust)  │ ◀───────────────────── │  :3536     │
+└──────────────────────┘                 └───────────────────┘   (cert pinned)        └────────────┘
+```
+
+A browser cannot speak native gRPC, cannot pin a self-signed certificate, and must never
+hold the ldk-server `api_key`. The sidecar does all three with the official
+`ldk-server-client` crate, and exposes:
+
+| Route                    | What                                                |
+| ------------------------ | --------------------------------------------------- |
+| `POST /api/rpc/<Method>` | One JSON endpoint per ldk-server RPC                |
+| `GET  /api/events`       | Node events as Server-Sent Events                   |
+| `GET  /api/config`       | `{ network }`                                       |
+| `POST /api/auth/login`   | Password sign-in, sets an `HttpOnly` session cookie |
+| `/`                      | The built web app (when `WEB_DIR` is set)           |
+
+## What the wallet does
+
+- Balances: on-chain, Lightning, pending channel closes
+- Receive: BOLT11 invoice, on-chain address (BIP21), BOLT12 offer
+- Send: BOLT11, BOLT12 offer, keysend to a node id, on-chain address, BIP21
+- Activity list and payment details
+- Channels: list, open, close, force close; peers: connect, disconnect
+- Node info and sign-out
+
+Not included (nothing to back them in ldk-server): Fedimint, Nostr, NWC, LNURL and
+Lightning addresses, payjoin, Mutiny+, seed backup and restore. The node owns the seed.
+
+## Run it
+
+### 1. Run ldk-server
+
+See the [ldk-server docs](https://github.com/lightningdevkit/ldk-server/tree/main/docs).
+The sidecar reads ldk-server's `config.toml` to find the data dir, network, gRPC address,
+`tls.crt` and `api_key`.
+
+### 2. Run the sidecar
+
+```bash
+cd server
+cp .env.example .env            # optional: override discovery
+WALLET_PASSWORD=change-me cargo run --release
+```
+
+`WALLET_PASSWORD` is required. Anything that reaches `/api/rpc/*` can spend from the node.
+`WALLET_AUTH=off` disables sign-in for local development and forces the listener onto
+`127.0.0.1`. Point at a non-default ldk-server config with `LDK_CONFIG=/path/to/config.toml`.
+See `server/.env.example` for every option.
+
+**Passkeys.** Sign in with the password once, then open Settings → Security and add a
+passkey. From then on the login screen offers "Sign in with passkey". Passkeys and the
+session secret live in `WALLET_DATA_DIR`. `WALLET_PUBLIC_URL` is the WebAuthn relying
+party, so it must be the exact URL the browser uses (scheme, host, port).
+
+### 3. Run the web app
+
+Development, with hot reload (Vite proxies `/api` to the sidecar on `127.0.0.1:8890`).
+Needs Node 22 or newer (`.nvmrc` says 24) and pnpm via corepack:
+
+```bash
+corepack enable
 pnpm install
-pnpm run dev
+pnpm run dev                    # http://localhost:3420
 ```
 
-### Env
+Production, served by the sidecar itself:
 
-The easiest way to get start with development is to create a file called `.env.local` and copy the contents of `.env.example` into it. This is basically identical to the env that `signet-app.mutinywallet.com` uses.
-
-### Testing
-
-We have a couple Playwright e2e tests in the e2e folder. You can run these with:
-
-```
-just test
+```bash
+pnpm run build
+cd server && WEB_DIR=../dist WALLET_PASSWORD=change-me cargo run --release
 ```
 
-Or get a visual look into what's happening:
+Or as one container:
 
+```bash
+docker build -t mutiny-web .
+docker run -p 8890:8890 \
+  -v "$HOME/Library/Application Support/ldk-server:/data:ro" \
+  -v mutiny-sidecar:/state \
+  -e LDK_DATA_DIR=/data -e LDK_NETWORK=bitcoin \
+  -e LDK_GRPC_ADDRESS=host.docker.internal:3536 \
+  -e WALLET_PASSWORD=change-me -e WALLET_PUBLIC_URL=https://wallet.example.com \
+  mutiny-web
 ```
-just test-ui
+
+Serve it over HTTPS: an `https://` `WALLET_PUBLIC_URL` is what marks the session cookie
+`Secure`. Front the sidecar with Caddy or similar.
+
+## Private regtest stack
+
+`regtest/` has a docker compose file with bitcoind and electrs on offset ports, plus two
+ldk-server configs (`wallet` and `peer`). With a built ldk-server checkout next door:
+
+```bash
+just regtest-up                 # bitcoind + electrs
+just regtest-mine 101
+ldk-server regtest/ldk/wallet.toml &
+ldk-server regtest/ldk/peer.toml &
+cd server && LDK_CONFIG=../regtest/ldk/wallet.toml WALLET_AUTH=off cargo run
 ```
 
-### Formatting
+`regtest/btc` wraps `bitcoin-cli` (`regtest/btc mine 6`, `regtest/btc fund <addr> 1.0`) and
+`regtest/peer` wraps `ldk-server-cli` for the peer node.
 
-Hopefully your editor picks up on the `prettier.config.mjs` file and auto formats accordingly. If you want to format everything in the project run `pnpm run format`.
+## Known limits
 
-### Deploying Web
-
-Create a PR from `master` to `prod`, and once it does CI and gets approvals, do this from the command line:
-
-```
-git checkout master && git pull && git checkout prod && git pull && git merge --ff-only origin/master && git push
-```
+- ldk-server's `ListPayments` only lists payments that produced a node event. On-chain
+  transactions produce none, so the activity list shows on-chain sends made from this
+  wallet (their txids are kept in local storage) but not on-chain receives or channel
+  funding transactions. The balance is always right.
+- The node records an on-chain send only at its next wallet sync, so payment details for
+  a fresh send appear after about a minute.
+- On-chain receive detection watches the balance, not the address.
 
 ## Contributing
 
-Before committing make sure to run `pnpm run pre-commit`. This will typecheck, lint, and format everything so CI won't hassle you. (Shortcut: `just pre`).
-
-### Local
-
-If you want to develop against a local version of [the node manager](https://github.com/MutinyWallet/mutiny-node), you may want to `pnpm link` it.
-
-Due to how [Vite's dev server works](https://vitejs.dev/config/server-options.html#server-fs-allow), the linked `mutiny-node` project folder should be a sibling of this `mutiny-web` folder. Alternatively you can change the allow path in `vite.config.ts`.
-
-In your `mutiny-node` local repo:
-
-```
-just link
-```
-
-(on a Mac you might need to prefix `just link` with these flags: `AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang`)
-
-Now in this repo, link them.
-
-```
-just local
-```
-
-To revert back and use the remote version of mutiny-wasm:
-
-```
-just remote
-```
+Before committing make sure to run `pnpm run pre-commit`. This will typecheck, lint, and
+format everything so CI won't hassle you. (Shortcut: `just pre`.) For the sidecar,
+`cargo fmt` and `cargo clippy` in `server/`.
 
 ## Android
 
@@ -120,14 +180,6 @@ openssl base64 < <my-release-key.keystore> | tr -d '\n' | tee some_signing_key.j
 4. Commit and push.
 
 ## Translating
-
-### Testing language keys
-
-To check what keys are missing from your desired language:
-
-```
-just i18n $lang
-```
 
 ### Adding new languages or keys
 

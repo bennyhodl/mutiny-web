@@ -27,7 +27,9 @@
     "pending": "Pending",
     "error_safe_mode": "Mutiny is running in safe mode. Lightning is disabled.",
     "self_hosted": "Self-hosted",
-    "expires": "Expires in {{time}}"
+    "expires": "Expires in {{time}}",
+    "confirmed": "Confirmed",
+    "unconfirmed": "Unconfirmed"
   },
   "home": {
     "receive": "Receive your first sats",
@@ -154,7 +156,12 @@
     "receive_strings_error": "Something went wrong generating an invoice or on-chain address.",
     "error_under_min_onchain": "That's under the dust limit! On-chain transactions should be much bigger.",
     "warning_on_chain_fedi": "On-chain fedimint deposits require 10 confirmations. RBF not supported yet.",
-    "warning_address_reuse": "Only send to this address once!"
+    "warning_address_reuse": "Only send to this address once!",
+    "amount_over_inbound": "This amount is more than your inbound capacity ({{amount}} sats). The payment can fail.",
+    "no_inbound": "You have no inbound capacity. Open a channel or ask a peer to open one to you before you receive over Lightning.",
+    "bolt12_label": "BOLT12 offer",
+    "bolt12_caption": "A reusable Lightning offer. Share it as many times as you like.",
+    "bolt12_reusable": "This offer can be paid more than once. The wallet shows the first payment it sees."
   },
   "send": {
     "search": {
@@ -162,7 +169,8 @@
       "paste": "Paste",
       "contacts": "Contacts",
       "global_search": "Global search",
-      "no_results": "No results found for"
+      "no_results": "No results found for",
+      "help": "Paste or type a Lightning invoice, a BOLT12 offer, a bitcoin address, a BIP21 link, or a node id to keysend."
     },
     "sending": "Sending...",
     "confirm_send": "Confirm Send",
@@ -253,7 +261,7 @@
       "fee": "Fee",
       "onchain_fee": "On-chain Fee",
       "invoice": "Invoice",
-      "payment_hash": "Payment Hash",
+      "payment_hash": "Payment hash",
       "payment_preimage": "Preimage",
       "txid": "Txid",
       "total": "Amount Requested",
@@ -266,7 +274,9 @@
       "unconfirmed": "Unconfirmed",
       "sweep_delay": "Funds may take a few days to be swept back into the wallet",
       "no_details": "No channel details found, which means this channel has likely been closed.",
-      "back_home": "back home"
+      "back_home": "back home",
+      "preimage": "Preimage",
+      "not_synced_yet": "The node has not synced this transaction yet. Check back in a minute."
     },
     "start_a_chat": "Start a chat?",
     "start_a_chat_are_you_sure": "This user isn't in your contact list.",
@@ -349,7 +359,24 @@
       "online_channels": "Online Channels",
       "offline_channels": "Offline Channels",
       "close_channel_confirm": "Closing this channel will move the balance on-chain and incur an on-chain fee.",
-      "force_close_channel_confirm": "This channel is offline. Force closing this channel will move the balance on-chain, incur an on-chain fee, and may take a few days to settle."
+      "force_close_channel_confirm": "This channel is offline. Force closing this channel will move the balance on-chain, incur an on-chain fee, and may take a few days to settle.",
+      "confirmations": "{{have}} of {{need}} confirmations",
+      "open": {
+        "title": "Open a channel",
+        "peer": "Peer",
+        "amount": "Amount (sats)",
+        "button": "Open channel",
+        "expect_uri": "Expected pubkey@host:port",
+        "too_small": "The channel must be at least 20,000 sats",
+        "success": "Channel opening. It is usable after the funding transaction confirms."
+      },
+      "peers": {
+        "title": "Peers",
+        "none": "No peers connected",
+        "connect": "Connect to a peer",
+        "connect_button": "Connect",
+        "disconnect": "Disconnect"
+      }
     },
     "connections": {
       "title": "Wallet Connections",
@@ -629,6 +656,36 @@
       "create": "Create Mutiny Address",
       "add_a_federation": "To enable this feature you need to be a member of a federation.",
       "ios_warning": "Mutiny Address requires Mutiny+ which cannot be purchased with this app."
+    },
+    "node": {
+      "title": "Node",
+      "caption": "Your ldk-server node",
+      "alias": "Alias",
+      "network": "Network",
+      "node_id": "Node ID",
+      "uri": "URI",
+      "block_height": "Block height",
+      "last_onchain_sync": "On-chain sync",
+      "last_lightning_sync": "Lightning sync",
+      "events": "Live events",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "sign_out": "Sign out"
+    },
+    "security": {
+      "title": "Security",
+      "caption": "Passkeys for signing in",
+      "description": "A passkey lets you sign in with Face ID, Touch ID, or a security key instead of the password. Add one on each device you use.",
+      "passkeys": "Passkeys",
+      "none": "No passkeys yet",
+      "name_placeholder": "Name, e.g. iPhone",
+      "add": "Add a passkey",
+      "added_title": "Passkey added",
+      "added_body": "You can sign in with it on this device from now on.",
+      "remove": "Remove",
+      "remove_confirm": "Remove the passkey \"{{name}}\"? You can still sign in with the password.",
+      "auth_off": "Authentication is off on the sidecar, so there is nothing to protect. Set WALLET_PASSWORD to turn it on.",
+      "unsupported": "This browser does not support passkeys."
     }
   },
   "swap": {
@@ -731,7 +788,8 @@
       "existing_wallet": "Checking for existing wallet",
       "downloading": "Downloading",
       "setup": "Setup",
-      "done": "Done"
+      "done": "Done",
+      "checking_auth": "Checking sign-in"
     },
     "onboarding": {
       "welcome": "Welcome!",
@@ -762,7 +820,7 @@
   },
   "setup": {
     "initial": {
-      "welcome": "Welcome to the Mutiny!",
+      "welcome": "Sign in to your node.",
       "new_wallet": "New Wallet",
       "import_existing": "Import Existing",
       "reporting": "Allow anonymous error reporting to help us improve the app. You can opt out at any time."
@@ -780,6 +838,12 @@
     "federation": {
       "pick": "Pick a federation",
       "skip_confirm": "You'll need to pay chain and channel fees to use Mutiny, and miss out on advanced features such as lightning address. You can change your mind later in the settings."
+    },
+    "login": {
+      "password": "Password",
+      "sign_in": "Sign in",
+      "passkey": "Sign in with passkey",
+      "or_password": "or use your password"
     }
   },
   "utils": {

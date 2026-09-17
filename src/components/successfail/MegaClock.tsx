@@ -5,7 +5,7 @@ export function MegaClock() {
         <img
             src={megaclock}
             alt="fail"
-            class="mx-auto w-1/2 max-w-[30vh] flex-shrink"
+            class="mx-auto w-1/2 max-w-[30vh] shrink"
         />
     );
 }

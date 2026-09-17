@@ -16,7 +16,11 @@ type SuccessModalProps = {
 export function SuccessModal(props: SuccessModalProps) {
     const i18n = useI18n();
     const onNice = () => {
-        props.onConfirm ? props.onConfirm() : props.setOpen(false);
+        if (props.onConfirm) {
+            props.onConfirm();
+        } else {
+            props.setOpen(false);
+        }
     };
 
     return (

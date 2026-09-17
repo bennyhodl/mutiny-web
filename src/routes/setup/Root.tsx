@@ -1,42 +1,67 @@
 import { useNavigate } from "@solidjs/router";
-import { createSignal } from "solid-js";
+import { KeyRound } from "lucide-solid";
+import { createSignal, onMount, Show } from "solid-js";
 
 import logo from "~/assets/mutiny-pixel-logo.png";
-import { Button, DefaultMain, NiceP } from "~/components";
+import {
+    Button,
+    DefaultMain,
+    InfoBox,
+    NiceP,
+    SimpleInput,
+    VStack
+} from "~/components";
 import { useI18n } from "~/i18n/context";
+import { passkeysSupported } from "~/logic/passkeys";
 import { useMegaStore } from "~/state/megaStore";
+import { eify } from "~/utils";
 
+/** Sign in to the sidecar. With auth off this screen is skipped. */
 export function Setup() {
-    const [_state, actions] = useMegaStore();
+    const [state, actions] = useMegaStore();
     const i18n = useI18n();
-
-    const [isCreatingNewWallet, setIsCreatingNewWallet] = createSignal(false);
-
     const navigate = useNavigate();
 
-    async function handleNewWallet() {
+    const [password, setPassword] = createSignal("");
+    const [loading, setLoading] = createSignal(false);
+    const [passkeyLoading, setPasskeyLoading] = createSignal(false);
+    const [error, setError] = createSignal<string>();
+
+    const showPasskey = () => state.has_passkeys && passkeysSupported();
+
+    onMount(() => {
+        if (state.load_stage === "done") {
+            navigate("/");
+        }
+    });
+
+    async function handleLogin(e: Event) {
+        e.preventDefault();
+        setError(undefined);
+        setLoading(true);
         try {
-            setIsCreatingNewWallet(true);
-            const profileSetupStage = localStorage.getItem(
-                "profile_setup_stage"
-            );
+            await actions.login(password());
+            navigate("/");
+        } catch (err) {
+            setError(eify(err).message);
+        } finally {
+            setLoading(false);
+        }
+    }
 
-            // Check for nip07 browser extension. If it exists, we can skip the profile setup
-            const hasNip07 = Object.prototype.hasOwnProperty.call(
-                window,
-                "nostr"
-            );
-
-            await actions.setup(undefined);
-
-            if (!profileSetupStage && !hasNip07) {
-                navigate("/newprofile");
-            } else {
-                navigate("/");
+    async function handlePasskey() {
+        setError(undefined);
+        setPasskeyLoading(true);
+        try {
+            await actions.loginWithPasskey();
+            navigate("/");
+        } catch (err) {
+            // The user closing the browser's passkey sheet is not an error worth showing.
+            if ((err as Error)?.name !== "NotAllowedError") {
+                setError(eify(err).message);
             }
-        } catch (e) {
-            console.error(e);
-            throw e;
+        } finally {
+            setPasskeyLoading(false);
         }
     }
 
@@ -44,31 +69,55 @@ export function Setup() {
         <DefaultMain>
             <div class="flex flex-1 flex-col items-center justify-between gap-4">
                 <div class="flex-1" />
-                <div class="flex flex-col items-center gap-4">
+                <form
+                    onSubmit={handleLogin}
+                    class="flex w-full max-w-[20rem] flex-col items-center gap-4"
+                >
                     <img
                         id="mutiny-logo"
                         src={logo}
                         class="h-[50px] w-[172px]"
-                        alt="Mutiny Plus logo"
+                        alt="Mutiny logo"
                     />
                     <NiceP>{i18n.t("setup.initial.welcome")}</NiceP>
                     <div class="h-4" />
-                    <Button
-                        layout="full"
-                        onClick={handleNewWallet}
-                        loading={isCreatingNewWallet()}
-                    >
-                        {i18n.t("setup.initial.new_wallet")}
-                    </Button>
-                    <Button
-                        intent="text"
-                        layout="full"
-                        disabled={isCreatingNewWallet()}
-                        onClick={() => navigate("/setup/restore")}
-                    >
-                        {i18n.t("setup.initial.import_existing")}
-                    </Button>
-                </div>
+                    <VStack>
+                        <Show when={showPasskey()}>
+                            <Button
+                                layout="full"
+                                intent="blue"
+                                type="button"
+                                loading={passkeyLoading()}
+                                onClick={handlePasskey}
+                            >
+                                <div class="flex items-center justify-center gap-2">
+                                    <KeyRound class="h-5 w-5" />
+                                    {i18n.t("setup.login.passkey")}
+                                </div>
+                            </Button>
+                            <p class="text-center text-sm text-m-grey-400">
+                                {i18n.t("setup.login.or_password")}
+                            </p>
+                        </Show>
+                        <SimpleInput
+                            type="password"
+                            value={password()}
+                            placeholder={i18n.t("setup.login.password")}
+                            onInput={(e) => setPassword(e.currentTarget.value)}
+                        />
+                        <Show when={error()}>
+                            <InfoBox accent="red">{error()}</InfoBox>
+                        </Show>
+                        <Button
+                            layout="full"
+                            type="submit"
+                            loading={loading()}
+                            disabled={!password()}
+                        >
+                            {i18n.t("setup.login.sign_in")}
+                        </Button>
+                    </VStack>
+                </form>
                 <div class="flex-1" />
             </div>
         </DefaultMain>

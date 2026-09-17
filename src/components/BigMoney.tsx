@@ -16,7 +16,7 @@ function BigScalingText(props: {
 
     return (
         <h1
-            class="whitespace-nowrap px-2 text-center text-4xl font-light transition-transform duration-300 ease-out"
+            class="px-2 text-center text-4xl font-light whitespace-nowrap transition-transform duration-300 ease-out"
             classList={{
                 "scale-90": chars() >= 11,
                 "scale-95": chars() === 10,
@@ -51,7 +51,7 @@ function SmallSubtleAmount(props: {
 
     return (
         <h2
-            class="flex flex-row items-center whitespace-nowrap text-xl font-light text-m-grey-350"
+            class="flex flex-row items-center text-xl font-light whitespace-nowrap text-m-grey-350"
             tabIndex={0}
         >
             <Show when={!props.loading || props.mode === "fiat"} fallback="…">
@@ -61,11 +61,11 @@ function SmallSubtleAmount(props: {
                     props.fiat?.hasSymbol}
                 {`${props.text} `}
                 {/* IDK why a space doesn't work here */}
-                <span class="flex-0 w-1">{""}</span>
+                <span class="w-1 flex-0">{""}</span>
                 <span class="text-base">
                     {props.fiat ? props.fiat.value : i18n.t("common.sats")}
                 </span>
-                <ArrowDownUp class="flex-0 inline-block h-6 w-6 pl-2 hover:cursor-pointer" />
+                <ArrowDownUp class="inline-block h-6 w-6 flex-0 pl-2 hover:cursor-pointer" />
             </Show>
         </h2>
     );
@@ -95,7 +95,7 @@ export function BigMoney(props: {
                     loading={state.price === 0}
                 />
                 <div
-                    class="mb-2 mt-4 h-[2px] w-full rounded-full"
+                    class="mt-4 mb-2 h-[2px] w-full rounded-full"
                     classList={{
                         "bg-m-blue": props.inputFocused,
                         "bg-m-blue/0": !props.inputFocused

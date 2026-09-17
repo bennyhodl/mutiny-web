@@ -31,7 +31,7 @@ export function AmountSats(props: {
             <Show when={props.icon === "chain"}>
                 <Link class="w-[18px]" />
             </Show>
-            <h1 class="whitespace-nowrap text-right font-light">
+            <h1 class="text-right font-light whitespace-nowrap">
                 <Show when={props.icon === "plus"}>
                     <span>+</span>
                 </Show>
@@ -91,7 +91,7 @@ export function AmountFiat(props: {
     });
 
     return (
-        <h2 class="whitespace-nowrap font-light">
+        <h2 class="font-light whitespace-nowrap">
             {amountInFiat()}
             <span
                 classList={{
@@ -111,7 +111,7 @@ export function AmountSmall(props: {
 }) {
     const i18n = useI18n();
     return (
-        <span class="whitespace-nowrap text-sm font-light md:text-base">
+        <span class="text-sm font-light whitespace-nowrap md:text-base">
             {`${prettyPrintAmount(props.amountSats)} `}
             <span class="text-xs md:text-sm">
                 {props.amountSats === 1 || props.amountSats === 1n

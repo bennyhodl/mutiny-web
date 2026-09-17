@@ -78,7 +78,7 @@ export function ChooseCurrency() {
                             <select
                                 {...props}
                                 value={field.value}
-                                class="w-full rounded-lg bg-m-grey-750 py-2 pl-4 pr-12 text-base font-normal text-white"
+                                class="w-full rounded-lg bg-m-grey-750 py-2 pr-12 pl-4 text-base font-normal text-white"
                             >
                                 <For each={COMBINED_OPTIONS}>
                                     {({ value, label }) => (

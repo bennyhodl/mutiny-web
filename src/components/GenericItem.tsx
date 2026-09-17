@@ -42,7 +42,7 @@ export function GenericItem(props: {
                 <Switch>
                     <Match when={props.icon}>
                         <button
-                            class="flex h-[3rem] w-[3rem] items-center justify-center"
+                            class="flex h-12 w-12 items-center justify-center"
                             onClick={() =>
                                 props.primaryOnClick && props.primaryOnClick()
                             }
@@ -105,7 +105,7 @@ export function GenericItem(props: {
                     </Show>
                     {/* OPTIONAL MESSAGE */}
                     <Show when={props.message}>
-                        <div class="font-regular line-clamp-1 min-w-0 break-all rounded-full bg-m-grey-800 px-2 py-1 text-xs leading-6">
+                        <div class="font-regular line-clamp-1 min-w-0 rounded-full bg-m-grey-800 px-2 py-1 text-xs leading-6 break-all">
                             {props.message}
                         </div>
                     </Show>
@@ -174,7 +174,7 @@ export function GenericItem(props: {
                     >
                         <div class="flex gap-4">
                             <button
-                                class="flex h-10 w-10 items-center justify-center rounded bg-m-grey-800 p-1 text-m-green active:-mb-[1px] active:mt-[1px]"
+                                class="flex h-10 w-10 items-center justify-center rounded bg-m-grey-800 p-1 text-m-green active:mt-px active:-mb-px"
                                 onClick={() =>
                                     props.approveAction && props.approveAction()
                                 }
@@ -182,7 +182,7 @@ export function GenericItem(props: {
                                 <Check />
                             </button>
                             <button
-                                class="flex h-10 w-10 items-center justify-center rounded bg-m-grey-800 p-1 text-m-red active:-mb-[1px] active:mt-[1px]"
+                                class="flex h-10 w-10 items-center justify-center rounded bg-m-grey-800 p-1 text-m-red active:mt-px active:-mb-px"
                                 onClick={() =>
                                     props.rejectAction && props.rejectAction()
                                 }

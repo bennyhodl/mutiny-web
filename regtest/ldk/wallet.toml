@@ -1,0 +1,16 @@
+# Regtest ldk-server node that the mutiny-web wallet drives.
+
+[node]
+network = "regtest"
+listening_addresses = ["127.0.0.1:9835"]
+grpc_service_address = "127.0.0.1:3636"
+alias = "mutiny-wallet"
+
+[storage.disk]
+dir_path = "/tmp/mutiny-regtest/ldk/wallet"
+
+[log]
+level = "Debug"
+
+[electrum]
+server_url = "tcp://127.0.0.1:50100"

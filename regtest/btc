@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# bitcoin-cli against the private regtest stack.
+#   regtest/btc getblockcount
+#   regtest/btc mine 6
+#   regtest/btc fund <address> 1.0
+set -euo pipefail
+cli=(docker exec mutiny-bitcoin bitcoin-cli -regtest -rpcuser=mutiny -rpcpassword=mutiny -rpcwallet=default)
+case "${1:-}" in
+  mine)
+    addr=$("${cli[@]}" getnewaddress)
+    "${cli[@]}" generatetoaddress "${2:-1}" "$addr" >/dev/null
+    "${cli[@]}" getblockcount
+    ;;
+  fund)
+    "${cli[@]}" sendtoaddress "$2" "${3:-1.0}"
+    ;;
+  *)
+    "${cli[@]}" "$@"
+    ;;
+esac

@@ -35,3 +35,9 @@ dev-dist
 /playwright/.cache/
 
 .env
+
+# Rust sidecar
+server/target
+
+# Private regtest stack
+regtest/volumes
