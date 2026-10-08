@@ -13,9 +13,13 @@ export function QrCode(props: { value: string; class?: string }) {
             })
     );
 
-    // The markup comes from the qrcode library, not from user input.
-    // eslint-disable-next-line solid/no-innerhtml
     return (
-        <div class={props.class} innerHTML={svg() ?? ""} aria-label="QR code" />
+        <div
+            class={props.class}
+            // The markup comes from the qrcode library, not from user input.
+            // eslint-disable-next-line solid/no-innerhtml
+            innerHTML={svg() ?? ""}
+            aria-label="QR code"
+        />
     );
 }
