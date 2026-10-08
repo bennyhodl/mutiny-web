@@ -29,6 +29,10 @@ pub struct Config {
     /// the sidecar serves the SPA from "/" so one binary hosts both. Set via WEB_DIR.
     pub web_dir: Option<PathBuf>,
     pub auth: Auth,
+    /// Nostr Wallet Connect, when WALLET_NWC_RELAY is set.
+    pub nwc: Option<crate::nwc::Settings>,
+    /// Lightning Address, when WALLET_LNURL_USERNAME is set.
+    pub lnurl: Option<crate::lnurl::Settings>,
 }
 
 /// Who is allowed to drive the node.
@@ -62,7 +66,7 @@ impl PasswordAuth {
     }
 }
 
-fn load_auth() -> anyhow::Result<Auth> {
+fn load_auth(public_url: Option<&str>) -> anyhow::Result<Auth> {
     match std::env::var("WALLET_AUTH").unwrap_or_else(|_| "password".into()).as_str() {
         "off" => Ok(Auth::Disabled),
         "password" => {
@@ -76,8 +80,7 @@ fn load_auth() -> anyhow::Result<Auth> {
             if password.len() < 8 {
                 anyhow::bail!("WALLET_PASSWORD must be at least 8 characters");
             }
-            let public_url = std::env::var("WALLET_PUBLIC_URL")
-                .unwrap_or_else(|_| "http://localhost:3420".into());
+            let public_url = public_url.unwrap_or("http://localhost:3420").to_string();
             let data_dir = wallet_data_dir()?;
 
             // A persistent secret keeps sessions valid across restarts. Without an
@@ -108,7 +111,7 @@ fn load_auth() -> anyhow::Result<Auth> {
                         .unwrap_or(24 * 30),
             );
 
-            tracing::info!("auth: password, public url {}", public_url.trim_end_matches('/'));
+            tracing::info!("auth: password, public url {public_url}");
             Ok(Auth::Password(PasswordAuth {
                 password,
                 session_secret,
@@ -285,10 +288,69 @@ impl Config {
             std::env::var("WEB_ORIGIN").unwrap_or_else(|_| "http://localhost:3420".into());
         let web_dir = std::env::var("WEB_DIR").ok().map(PathBuf::from).filter(|p| p.is_dir());
 
-        let auth = load_auth()?;
+        // The URL the wallet is served at, without a trailing slash. Passkeys and the
+        // Lightning Address both build on it.
+        let public_url = set_var("WALLET_PUBLIC_URL").map(|u| u.trim_end_matches('/').to_string());
+        let auth = load_auth(public_url.as_deref())?;
 
-        Ok(Self { grpc_address, tls_cert, api_key, network, port, web_origin, web_dir, auth })
+        // NWC keys come from ldk-server's own mnemonic, so there is one seed to back up.
+        let nwc = match set_var("WALLET_NWC_RELAY") {
+            None => None,
+            Some(relay) => {
+                let relay = nostr::types::RelayUrl::parse(relay.trim())
+                    .map_err(|e| anyhow::anyhow!("WALLET_NWC_RELAY is not a relay URL ({e})"))?;
+                let mnemonic_path = std::env::var("LDK_MNEMONIC_PATH")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|_| storage_dir.join("keys_mnemonic"));
+                let mnemonic = fs::read_to_string(&mnemonic_path).map_err(|e| {
+                    anyhow::anyhow!(
+                        "reading ldk-server's mnemonic at {} ({e}). NWC derives its keys from \
+                         it; override with LDK_MNEMONIC_PATH.",
+                        mnemonic_path.display()
+                    )
+                })?;
+                let connection = match set_var("WALLET_NWC_CONNECTION") {
+                    Some(n) => n.trim().parse::<u32>().map_err(|_| {
+                        anyhow::anyhow!("WALLET_NWC_CONNECTION must be a non-negative integer")
+                    })?,
+                    None => 0,
+                };
+                Some(crate::nwc::Settings::from_mnemonic(relay, &mnemonic, connection)?)
+            }
+        };
+
+        let lnurl = match set_var("WALLET_LNURL_USERNAME") {
+            None => None,
+            Some(username) => {
+                let public_url = public_url.as_deref().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "WALLET_LNURL_USERNAME needs WALLET_PUBLIC_URL: payers fetch the \
+                         Lightning Address from that origin"
+                    )
+                })?;
+                Some(crate::lnurl::Settings::new(&username, public_url)?)
+            }
+        };
+
+        Ok(Self {
+            grpc_address,
+            tls_cert,
+            api_key,
+            network,
+            port,
+            web_origin,
+            web_dir,
+            auth,
+            nwc,
+            lnurl,
+        })
     }
+}
+
+/// An env var that is set to something. docker-compose passes unset variables
+/// through as empty strings, which must mean "off", not "invalid".
+fn set_var(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
 /// Find the single network subdir under `storage_dir` that contains an `api_key` file.

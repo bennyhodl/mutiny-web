@@ -106,6 +106,20 @@ export async function walletConfig(): Promise<WalletConfig> {
     return res.json();
 }
 
+/** How outside apps such as Zaprite pay this node. Both can only receive. */
+export type Connections = {
+    /** Receive-only Nostr Wallet Connect; null when WALLET_NWC_RELAY is unset. */
+    nwc: { uri: string; relay: string; methods: string[] } | null;
+    /** user@domain; null when WALLET_LNURL_USERNAME is unset. */
+    lightning_address: string | null;
+};
+
+export async function connections(): Promise<Connections> {
+    const res = await fetch("/api/connections");
+    if (!res.ok) throw await toRpcError(res);
+    return res.json();
+}
+
 // ---- Response types (subset) ----------------------------------------------
 
 export interface BestBlock {

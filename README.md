@@ -23,6 +23,8 @@ hold the ldk-server `api_key`. The sidecar does all three with the official
 | `GET  /api/events`       | Node events as Server-Sent Events                   |
 | `GET  /api/config`       | `{ network }`                                       |
 | `POST /api/auth/login`   | Password sign-in, sets an `HttpOnly` session cookie |
+| `GET  /api/connections`  | NWC connection string and Lightning Address         |
+| `/.well-known/lnurlp/*`  | Lightning Address, public (see Taking payments)     |
 | `/`                      | The built web app (when `WEB_DIR` is set)           |
 
 ## What the wallet does
@@ -33,9 +35,12 @@ hold the ldk-server `api_key`. The sidecar does all three with the official
 - Activity list and payment details
 - Channels: list, open, close, force close; peers: connect, disconnect
 - Node info and sign-out
+- Take payments from apps such as Zaprite: Nostr Wallet Connect and a Lightning Address,
+  both receive-only (Settings → Connect apps)
 
-Not included (nothing to back them in ldk-server): Fedimint, Nostr, NWC, LNURL and
-Lightning addresses, payjoin, Mutiny+, seed backup and restore. The node owns the seed.
+Not included (nothing to back them in ldk-server): Fedimint, Nostr contacts, LNURL
+pay/withdraw from the wallet, payjoin, Mutiny+, seed backup and restore. The node owns the
+seed.
 
 ## Run it
 
@@ -97,6 +102,44 @@ docker run -p 8890:8890 \
 Serve it over HTTPS: an `https://` `WALLET_PUBLIC_URL` is what marks the session cookie
 `Secure`. Front the sidecar with Caddy or similar.
 
+## Taking payments (Zaprite)
+
+The sidecar can take payments for the node from outside apps such as Zaprite, two ways.
+Both are **receive-only**: they create invoices and report on them, and never call a send
+RPC. The wallet shows both under Settings → Connect apps.
+
+**Lightning Address** (LUD-16 over LNURL-pay, with LUD-21 `verify` so the payer can
+confirm settlement). The domain is the host of `WALLET_PUBLIC_URL`:
+
+```bash
+WALLET_PUBLIC_URL=https://wallet.example.com
+WALLET_LNURL_USERNAME=bitcoinbay              # -> bitcoinbay@wallet.example.com
+```
+
+These routes are public by design. Payers fetch `/.well-known/lnurlp/<username>` from
+that host over HTTPS.
+
+**Nostr Wallet Connect** (NIP-47):
+
+```bash
+WALLET_NWC_RELAY=wss://relay.getalby.com/v1
+```
+
+It answers `get_info`, `make_invoice`, `lookup_invoice` and `list_transactions`, publishes
+`payment_received` notifications, and speaks both nip44 and nip04. Anything that would
+spend gets `RESTRICTED`.
+
+Its keys are **derived from ldk-server's mnemonic** (`<ldk data dir>/keys_mnemonic`,
+override with `LDK_MNEMONIC_PATH`), so there is still one seed to back up. The paths follow
+NIP-06 on a dedicated account: the wallet key is `m/44'/1237'/47'/0/0`, the connection key
+`m/44'/1237'/47'/1/<n>`. The connection string is a credential. To revoke it, set
+`WALLET_NWC_CONNECTION=<n+1>` and paste the new one into the app. This means the sidecar
+reads the node's master secret; it already held the api_key, which can spend everything.
+
+`cargo test` in `server/` runs both flows end to end: the real sidecar binary against a
+real bitcoind and two ldk-server nodes over a funded channel, paired the way Zaprite
+pairs. The first run builds ldk-server and downloads bitcoind.
+
 ## Private regtest stack
 
 `regtest/` has a docker compose file with bitcoind and electrs on offset ports, plus two
@@ -122,12 +165,15 @@ cd server && LDK_CONFIG=../regtest/ldk/wallet.toml WALLET_AUTH=off cargo run
 - The node records an on-chain send only at its next wallet sync, so payment details for
   a fresh send appear after about a minute.
 - On-chain receive detection watches the balance, not the address.
+- ldk-server doesn't store invoice strings, so the sidecar keeps the ones it issues to NWC
+  and Lightning Address payers in memory. After a restart, lookups and `verify` still report
+  settlement and the preimage, but not the invoice string of earlier invoices.
 
 ## Contributing
 
 Before committing make sure to run `pnpm run pre-commit`. This will typecheck, lint, and
 format everything so CI won't hassle you. (Shortcut: `just pre`.) For the sidecar,
-`cargo fmt` and `cargo clippy` in `server/`.
+`cargo fmt`, `cargo clippy` and `cargo test` in `server/`.
 
 ## Android
 

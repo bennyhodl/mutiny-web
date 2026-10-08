@@ -10,6 +10,7 @@
 //!   POST /api/rpc/<method>   body = request as JSON  ->  response as JSON
 //!   GET  /api/events         Server-Sent Events stream of EventEnvelope JSON
 //!   GET  /api/config         { network }
+//!   GET  /api/connections    NWC connection string + Lightning Address, if enabled
 //!   /api/auth/*              password + passkey sign-in, see auth.rs
 //!
 //! The JSON shape is `ldk-server-grpc`'s serde representation (snake_case).
@@ -36,6 +37,9 @@ use tower_http::trace::TraceLayer;
 
 mod auth;
 mod config;
+mod invoices;
+mod lnurl;
+mod nwc;
 mod passkeys;
 use config::{Auth, Config};
 
@@ -57,12 +61,32 @@ async fn main() -> anyhow::Result<()> {
     let cfg = Config::from_env()?;
     let client = LdkServerClient::new(cfg.grpc_address.clone(), cfg.api_key, &cfg.tls_cert)
         .map_err(|e| anyhow::anyhow!("failed to build ldk-server client: {e}"))?;
-    let state = AppState { client: Arc::new(client), network: cfg.network.clone() };
+    let client = Arc::new(client);
+    let state = AppState { client: client.clone(), network: cfg.network.clone() };
     let auth = Arc::new(cfg.auth);
 
+    // Taking payments: both issue invoices through one book, so either can look
+    // up an invoice the other created.
+    let invoices = Arc::new(invoices::Invoices::new(client.clone()));
+    let lightning_address = cfg.lnurl.as_ref().map(|l| l.lightning_address());
+    let nwc = cfg.nwc.map(|s| Arc::new(nwc::Nwc::new(s, lightning_address.clone())));
+    if let Some(nwc) = &nwc {
+        nwc.clone().spawn(invoices.clone(), client.clone());
+    }
+    // The connection string is a credential, so it is only served behind auth.
+    let connections = json!({
+        "nwc": nwc.as_ref().map(|n| json!({
+            "uri": n.uri().to_string(),
+            "relay": n.relay().to_string(),
+            "methods": nwc::Nwc::method_names(),
+        })),
+        "lightning_address": lightning_address,
+    });
+
     // Unauthenticated by necessity: the liveness probe and the endpoints that
-    // perform the sign-in itself. Nothing here touches ldk-server.
-    let public = Router::new()
+    // perform the sign-in itself. Nothing here touches ldk-server, except the
+    // Lightning Address routes merged below, which can only issue invoices.
+    let mut public = Router::new()
         .route("/api/health", get(|| async { Json(json!({ "ok": true })) }))
         .route("/api/auth/me", get(auth::me))
         .route("/api/auth/login", post(auth::login))
@@ -70,6 +94,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/passkey/login/start", post(auth::passkey_login_start))
         .route("/api/auth/passkey/login/finish", post(auth::passkey_login_finish))
         .with_state(auth.clone());
+
+    // Lightning Address is public by design: payers must reach it without a session.
+    if let Some(lnurl) = cfg.lnurl {
+        tracing::info!("lightning address: {}", lnurl.lightning_address());
+        public = public.merge(lnurl::router(lnurl, invoices.clone()));
+    }
 
     // Passkey enrolment needs a session: the password gates the first passkey.
     let protected_auth = Router::new()
@@ -87,6 +117,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(rpc_routes())
         .route("/api/events", get(events))
         .route("/api/config", get(wallet_config))
+        .route("/api/connections", get(move || async move { Json(connections) }))
         .with_state(state)
         .layer(axum::middleware::from_fn_with_state(auth.clone(), auth::require_auth));
 

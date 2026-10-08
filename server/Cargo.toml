@@ -28,6 +28,10 @@ time = "0.3"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Nostr Wallet Connect (NIP-47) wallet service. Keys derive from ldk-server's
+# mnemonic via NIP-06; nip44 and nip04 so any NWC app can talk to it.
+nostr = { version = "0.45", features = ["std", "os-rng", "nip04", "nip06", "nip44", "nip47"] }
+nostr-sdk = "0.45"
 toml = "0.8"
 anyhow = "1"
 tracing = "0.1"
@@ -35,3 +39,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 webauthn-rs = { version = "0.5.5", features = ["danger-allow-state-serialisation"] }
 url = "2.5.8"
 uuid = { version = "1.26.1", features = ["v4", "v5"] }
+
+[dev-dependencies]
+# ldk-server's own e2e harness: a real bitcoind, real ldk-server nodes, a funded
+# channel. Same repo and revision as ldk-server-client above.
+e2e-tests = { git = "https://github.com/lightningdevkit/ldk-server", rev = "4cf8167e2460df49b92566ee8af3ebc95d652f79" }
+# What an NWC app (Zaprite) uses to talk to us, and a relay for it to talk over.
+nwc = "0.45"
+nostr-sdk = { version = "0.45", features = ["local-relay"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
