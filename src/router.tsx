@@ -22,6 +22,7 @@ import {
 import { Main, NotFound, Receive, Scanner, Search, Send } from "~/routes";
 import {
     Channels,
+    ConnectApps,
     Currency,
     Language,
     Node,
@@ -145,6 +146,7 @@ export function Router() {
                 <Route path="/node" component={Node} />
                 <Route path="/security" component={Security} />
                 <Route path="/channels" component={Channels} />
+                <Route path="/connect-apps" component={ConnectApps} />
                 <Route path="/currency" component={Currency} />
                 <Route path="/language" component={Language} />
             </Route>

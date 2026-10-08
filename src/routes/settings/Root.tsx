@@ -86,6 +86,11 @@ export function Settings() {
                             text: i18n.t("settings.channels.title")
                         },
                         {
+                            href: "/settings/connect-apps",
+                            text: i18n.t("settings.connect_apps.title"),
+                            caption: i18n.t("settings.connect_apps.caption")
+                        },
+                        {
                             href: "/settings/security",
                             text: i18n.t("settings.security.title"),
                             caption: i18n.t("settings.security.caption")
